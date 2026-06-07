@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "课时记",
+    "slug": "lesson-ledger",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "lessonledger",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lishuo.lesson",
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "课时记会在课程快结束时提醒你确认本节课金额。"
+      }
+    },
+    "android": {
+      "package": "com.lishuo.lesson",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#F7FAFC"
+      },
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "lesson-reminders"
+        }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ],
+      "expo-sqlite"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
