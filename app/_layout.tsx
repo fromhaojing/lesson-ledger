@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Image, View } from "react-native";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { StatusBar } from "expo-status-bar";
 import { Stack, usePathname, useRouter } from "expo-router";
@@ -9,6 +9,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { bootstrapApp } from "@/bootstrap";
 import { HeaderCreateMenu } from "@/components/header-create-menu";
 import { useTheme } from "@/theme";
+
+const splashLogo = require("../assets/images/logo-source.png");
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -46,10 +48,12 @@ export default function RootLayout() {
   useEffect(() => {
     let mounted = true;
 
-    bootstrapApp()
-      .catch((error) => {
+    Promise.all([
+      bootstrapApp().catch((error) => {
         console.warn("Failed to bootstrap app", error);
-      })
+      }),
+      new Promise((resolve) => setTimeout(resolve, 1100))
+    ])
       .finally(() => {
         if (mounted) setReady(true);
       });
@@ -81,7 +85,26 @@ export default function RootLayout() {
             backgroundColor: theme.colors.background
           }}
         >
-          <ActivityIndicator color={theme.colors.primary} />
+          <View style={{ alignItems: "center", gap: 16 }}>
+            <View
+              style={{
+                borderCurve: "continuous",
+                borderRadius: 28,
+                height: 108,
+                overflow: "hidden",
+                width: 108
+              }}
+            >
+              <Image
+                accessibilityIgnoresInvertColors
+                accessibilityLabel="课时记 Logo"
+                source={splashLogo}
+                style={{ height: "100%", width: "100%" }}
+                resizeMode="contain"
+              />
+            </View>
+            <ActivityIndicator color={theme.colors.primary} />
+          </View>
           <StatusBar style={theme.scheme === "dark" ? "light" : "dark"} />
         </View>
       </SafeAreaProvider>

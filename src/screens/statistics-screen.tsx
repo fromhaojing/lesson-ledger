@@ -255,11 +255,7 @@ function DateRangePicker({
         </View>
       <View
         style={{
-          backgroundColor: theme.colors.background,
-          borderColor: theme.colors.line,
-          borderCurve: "continuous",
           borderRadius: 18,
-          borderWidth: 1,
           overflow: "hidden"
         }}
       >
@@ -278,7 +274,7 @@ function DatePickerField({ label, onChange, value }: { label: string; onChange: 
     <View
       style={{
         alignItems: "center",
-        backgroundColor: theme.colors.background,
+        // backgroundColor: theme.colors.background,
         flexDirection: "row",
         minHeight: 50,
         paddingLeft: 14,
