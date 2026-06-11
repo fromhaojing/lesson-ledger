@@ -10,6 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "icon": {
+        "light": "./assets/images/icon.png",
+        "dark": "./assets/images/icon-dark.png",
+        "tinted": "./assets/images/ios-tinted.png"
+      },
       "bundleIdentifier": "com.lishuo.lesson",
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "课时记会在课程快结束时提醒你确认本节课金额。"

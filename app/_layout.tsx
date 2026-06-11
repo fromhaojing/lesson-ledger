@@ -10,7 +10,10 @@ import { bootstrapApp } from "@/bootstrap";
 import { HeaderCreateMenu } from "@/components/header-create-menu";
 import { useTheme } from "@/theme";
 
-const splashLogo = require("../assets/images/logo-source.png");
+const splashLogos = {
+  dark: require("../assets/images/icon-dark.png"),
+  light: require("../assets/images/icon.png")
+};
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -98,7 +101,7 @@ export default function RootLayout() {
               <Image
                 accessibilityIgnoresInvertColors
                 accessibilityLabel="课时记 Logo"
-                source={splashLogo}
+                source={theme.scheme === "dark" ? splashLogos.dark : splashLogos.light}
                 style={{ height: "100%", width: "100%" }}
                 resizeMode="contain"
               />
