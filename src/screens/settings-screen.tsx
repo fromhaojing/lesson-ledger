@@ -1,5 +1,5 @@
 import { Children, cloneElement, isValidElement, useCallback, useState, type ReactNode } from "react";
-import { Alert, Linking, Platform, PlatformColor, Pressable, Switch, Text, View, type ColorValue } from "react-native";
+import { Alert, Linking, Pressable, Switch, Text, View, type ColorValue } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
@@ -77,7 +77,7 @@ export function SettingsScreen() {
       <SettingsGroup>
         <SettingsRow
           icon="school-outline"
-          iconBackground={systemColor("systemTeal", "#30B0A3")}
+          iconBackground="#30B0A3"
           title="课程默认值"
           value={`${defaultAmount} 元 · ${reminderTimingLabel(remindTiming)} ${remind} 分钟`}
           onPress={() => router.push("/settings/defaults")}
@@ -99,9 +99,9 @@ export function SettingsScreen() {
           value="本机存储"
           onPress={() => router.push("/settings/privacy")}
         />
-         <SettingsRow
+        <SettingsRow
           icon="information-circle-outline"
-          iconBackground={systemColor("systemBlue", "#007AFF")}
+          iconBackground="#007AFF"
           title="关于"
           value="课时记"
           onPress={() => router.push("/settings/about")}
@@ -380,7 +380,7 @@ function SettingsGroup({ children, title }: { children: ReactNode; title?: strin
   return (
     <View style={{ gap: 5, marginBottom: title ? 0 : 14 }}>
       {title ? (
-        <Text style={{ color: systemColor("secondaryLabel", "#6D6D72"), fontSize: 13, paddingHorizontal: 16, textTransform: "uppercase" }}>
+        <Text style={{ color: theme.colors.muted, fontSize: 13, paddingHorizontal: 16, textTransform: "uppercase" }}>
           {title}
         </Text>
       ) : null}
@@ -459,11 +459,11 @@ function SettingsRow({
           minHeight: 46
         }}
       >
-        <Text style={{ color: systemColor("label", theme.colors.text), flex: 1, fontSize: 17 }}>{title}</Text>
-        <Text numberOfLines={1} style={{ color: systemColor("secondaryLabel", theme.colors.muted), fontSize: 17, maxWidth: 190 }}>
+        <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>{title}</Text>
+        <Text numberOfLines={1} style={{ color: theme.colors.muted, fontSize: 17, maxWidth: 190 }}>
           {value}
         </Text>
-        <Ionicons name="chevron-forward" size={17} color={systemColor("tertiaryLabel", "#C7C7CC")} />
+        <Ionicons name="chevron-forward" size={17} color={theme.colors.muted} />
       </View>
     </Pressable>
   );
@@ -477,14 +477,14 @@ function ChoiceRow({ onPress, selected, title }: { onPress: () => void; selected
       onPress={onPress}
       style={({ pressed }) => ({
         alignItems: "center",
-        backgroundColor: pressed ? systemColor("tertiarySystemGroupedBackground", "#E5E5EA") : systemColor("secondarySystemGroupedBackground", "#FFFFFF"),
+        backgroundColor: pressed ? theme.colors.surfaceSoft : theme.colors.surface,
         flexDirection: "row",
         minHeight: 46,
         paddingHorizontal: 16
       })}
     >
-      <Text style={{ color: systemColor("label", theme.colors.text), flex: 1, fontSize: 17 }}>{title}</Text>
-      {selected ? <Ionicons name="checkmark" color={systemColor("systemBlue", "#007AFF")} size={22} /> : null}
+      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>{title}</Text>
+      {selected ? <Ionicons name="checkmark" color={theme.colors.primary} size={22} /> : null}
     </Pressable>
   );
 }
@@ -507,7 +507,7 @@ function ColorChoiceRow({
       onPress={onPress}
       style={({ pressed }) => ({
         alignItems: "center",
-        backgroundColor: pressed ? systemColor("tertiarySystemGroupedBackground", "#E5E5EA") : systemColor("secondarySystemGroupedBackground", "#FFFFFF"),
+        backgroundColor: pressed ? theme.colors.surfaceSoft : theme.colors.surface,
         flexDirection: "row",
         minHeight: 50,
         paddingHorizontal: 16
@@ -525,7 +525,7 @@ function ColorChoiceRow({
           width: 28
         }}
       />
-      <Text style={{ color: systemColor("label", theme.colors.text), flex: 1, fontSize: 17 }}>{title}</Text>
+      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>{title}</Text>
       {selected ? <Ionicons name="checkmark" color={theme.colors.primary} size={22} /> : null}
     </Pressable>
   );
@@ -543,22 +543,22 @@ function SettingsActionRow({
   value: string;
 }) {
   const theme = useTheme();
-  const titleColor = destructive ? systemColor("systemRed", theme.colors.danger) : systemColor("label", theme.colors.text);
+  const titleColor = destructive ? theme.colors.danger : theme.colors.text;
 
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
         alignItems: "center",
-        backgroundColor: pressed ? systemColor("tertiarySystemGroupedBackground", "#E5E5EA") : systemColor("secondarySystemGroupedBackground", "#FFFFFF"),
+        backgroundColor: pressed ? theme.colors.surfaceSoft : theme.colors.surface,
         flexDirection: "row",
         minHeight: 46,
         paddingHorizontal: 16
       })}
     >
       <Text style={{ color: titleColor, flex: 1, fontSize: 17 }}>{title}</Text>
-      <Text style={{ color: systemColor("secondaryLabel", theme.colors.muted), fontSize: 17, marginRight: 8 }}>{value}</Text>
-      {value ? <Ionicons name="chevron-forward" size={17} color={systemColor("tertiaryLabel", "#C7C7CC")} /> : null}
+      <Text style={{ color: theme.colors.muted, fontSize: 17, marginRight: 8 }}>{value}</Text>
+      {value ? <Ionicons name="chevron-forward" size={17} color={theme.colors.muted} /> : null}
     </Pressable>
   );
 }
@@ -568,7 +568,7 @@ function SwitchRow({ onValueChange, title, value }: { onValueChange: (value: boo
 
   return (
     <View style={{ alignItems: "center", flexDirection: "row", minHeight: 46, paddingHorizontal: 16 }}>
-      <Text style={{ color: systemColor("label", theme.colors.text), flex: 1, fontSize: 17 }}>{title}</Text>
+      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>{title}</Text>
       <Switch value={value} onValueChange={onValueChange} />
     </View>
   );
@@ -579,8 +579,8 @@ function InfoRow({ title, value }: { title: string; value: string }) {
 
   return (
     <View style={{ flexDirection: "row", gap: 10, minHeight: 46, paddingHorizontal: 16, paddingVertical: 10 }}>
-      <Text style={{ color: systemColor("label", theme.colors.text), flex: 1, fontSize: 17 }}>{title}</Text>
-      <Text style={{ color: systemColor("secondaryLabel", theme.colors.muted), flex: 1.2, fontSize: 17, textAlign: "right" }}>{value}</Text>
+      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>{title}</Text>
+      <Text style={{ color: theme.colors.muted, flex: 1.2, fontSize: 17, textAlign: "right" }}>{value}</Text>
     </View>
   );
 }
@@ -589,7 +589,7 @@ function FooterText({ children }: { children: string }) {
   const theme = useTheme();
 
   return (
-    <Text style={{ color: systemColor("secondaryLabel", theme.colors.muted), fontSize: 13, lineHeight: 18, paddingHorizontal: 16 }}>
+    <Text style={{ color: theme.colors.muted, fontSize: 13, lineHeight: 18, paddingHorizontal: 16 }}>
       {children}
     </Text>
   );
@@ -625,8 +625,4 @@ async function getNotificationStatusLabel() {
   const current = await Notifications.getPermissionsAsync();
   if (!current.granted) return "系统未允许";
   return appEnabled ? "已开启" : "已关闭";
-}
-
-function systemColor(name: string, fallback: string): ColorValue {
-  return Platform.OS === "ios" ? PlatformColor(name) : fallback;
 }

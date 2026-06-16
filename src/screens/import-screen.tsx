@@ -27,8 +27,12 @@ export function ImportScreen() {
       if (result.canceled) return;
 
       const asset = result.assets[0];
+      if (asset.size && asset.size > 5 * 1024 * 1024) {
+        throw new Error("Excel 文件不能超过 5MB");
+      }
+
       const preview = await parseExcelFile(asset.uri);
-      setImportDraft({ filename: asset.name, preview });
+      await setImportDraft({ filename: asset.name, sourceUri: asset.uri, preview });
       router.push("/import/preview");
     } catch (error) {
       Alert.alert("解析失败", error instanceof Error ? error.message : "请确认文件为 Excel 格式。");

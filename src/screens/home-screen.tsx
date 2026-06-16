@@ -35,7 +35,7 @@ export function HomeScreen() {
     );
     setExpectedToday(
       lessons
-        .filter((lesson) => lesson.status !== "confirmed")
+        .filter((lesson) => ["scheduled", "pending"].includes(lesson.status))
         .reduce((total, lesson) => total + (lesson.defaultAmount ?? 0), 0)
     );
     setPendingCount(stats.pendingCount);

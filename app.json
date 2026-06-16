@@ -22,6 +22,7 @@
     },
     "android": {
       "package": "com.lishuo.lesson",
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#F7FAFC"

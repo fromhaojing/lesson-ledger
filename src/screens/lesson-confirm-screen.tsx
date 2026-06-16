@@ -57,6 +57,8 @@ export function LessonConfirmScreen() {
     return <View style={{ flex: 1, backgroundColor: theme.colors.background }} />;
   }
 
+  const canConfirm = ["scheduled", "pending"].includes(lesson.status);
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <SafeAreaScrollView contentContainerStyle={{ gap: 12, paddingHorizontal: 20 }}>
@@ -70,11 +72,25 @@ export function LessonConfirmScreen() {
           </Text>
         </Card>
 
-        <Card>
-          <NumberWheelField label="实际金额" value={amount} onChangeText={setAmount} suffix="元" placeholder="选择金额" />
-          <Field label="备注" value={note} onChangeText={setNote} placeholder="可选" />
-          <PrimaryButton onPress={() => confirm()}>确认</PrimaryButton>
-        </Card>
+        {canConfirm ? (
+          <Card>
+            <NumberWheelField label="实际金额" value={amount} onChangeText={setAmount} suffix="元" placeholder="选择金额" />
+            <Field label="备注" value={note} onChangeText={setNote} placeholder="可选" />
+            <PrimaryButton onPress={() => confirm()}>确认</PrimaryButton>
+          </Card>
+        ) : (
+          <Card>
+            <Text selectable style={{ color: theme.colors.text, fontSize: 17, fontWeight: "600" }}>
+              这节课已经处理过了
+            </Text>
+            <Text selectable style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 22 }}>
+              已确认、已取消或缺勤的课程不能再次确认金额。
+            </Text>
+            <PrimaryButton variant="quiet" onPress={() => closeConfirmScreen(lesson.id)}>
+              返回课程详情
+            </PrimaryButton>
+          </Card>
+        )}
       </SafeAreaScrollView>
     </View>
   );

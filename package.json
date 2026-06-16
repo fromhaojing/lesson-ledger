@@ -10,6 +10,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "postinstall": "patch-package",
+    "build:template": "node outputs/template-build/build-template.mjs",
+    "test": "node --test --experimental-transform-types src/**/*.test.mts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

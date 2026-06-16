@@ -46,6 +46,23 @@ export function LessonDetailScreen() {
     ]);
   }
 
+  async function markAbsent() {
+    if (!lesson) return;
+    Alert.alert("标记缺勤", "标记后这节课会进入未完成统计，金额会记为 0。", [
+      { text: "取消", style: "cancel" },
+      {
+        text: "标记缺勤",
+        style: "destructive",
+        onPress: async () => {
+          await lessonRepository.markAbsent(lesson.id, 0);
+          await syncLessonNotifications();
+          await syncPendingLessonBadge();
+          await load();
+        }
+      }
+    ]);
+  }
+
   function confirmAmount() {
     if (!lesson) return;
     router.push(`/lessons/${lesson.id}/confirm`);
@@ -89,13 +106,18 @@ export function LessonDetailScreen() {
         </Card>
 
         {canAct ? (
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <PrimaryButton onPress={confirmAmount} style={{ flex: 1 }}>
+          <View style={{ gap: 10 }}>
+            <PrimaryButton onPress={confirmAmount}>
               确认金额
             </PrimaryButton>
-            <PrimaryButton variant="danger" onPress={markCancelled} style={{ flex: 1 }}>
-              取消课程
-            </PrimaryButton>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <PrimaryButton variant="quiet" onPress={markAbsent} style={{ flex: 1 }}>
+                标记缺勤
+              </PrimaryButton>
+              <PrimaryButton variant="danger" onPress={markCancelled} style={{ flex: 1 }}>
+                取消课程
+              </PrimaryButton>
+            </View>
           </View>
         ) : null}
       </SafeAreaScrollView>

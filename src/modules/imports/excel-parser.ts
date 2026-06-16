@@ -2,7 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as XLSX from "xlsx";
 
 import type { CreateLessonInput } from "@/modules/lessons/lesson.types";
-import { combineDateTime, parseDateText, parseTimeText } from "@/utils/date";
+import { combineLessonDateTimeRange, parseDateText, parseTimeText } from "@/utils/date";
 import { parseAmount } from "@/utils/money";
 
 const fieldAliases = {
@@ -57,6 +57,7 @@ function parseRow(row: Record<string, unknown>): CreateLessonInput {
   const endTime = parseTimeText(readField(row, "endTime", true));
   const studentText = String(readField(row, "studentNames", true)).trim();
   const studentNames = parseStudentNames(studentText);
+  const { startAt, endAt } = combineLessonDateTimeRange(dateText, startTime, endTime);
 
   if (studentNames.length === 0) throw new Error("缺少学生");
 
@@ -64,8 +65,8 @@ function parseRow(row: Record<string, unknown>): CreateLessonInput {
     title: studentNames.join("、"),
     studentNames,
     dateText,
-    startAt: combineDateTime(dateText, startTime),
-    endAt: combineDateTime(dateText, endTime),
+    startAt,
+    endAt,
     grade: optionalText(readField(row, "grade")),
     courseType: optionalText(readField(row, "courseType")),
     defaultAmount: parseAmount(readField(row, "defaultAmount")),

@@ -39,21 +39,25 @@ export function CalendarScreen() {
   const [visibleMonth, setVisibleMonth] = useState(monthKey());
   const [lessons, setLessons] = useState<Lesson[]>([]);
 
-  const load = useCallback(async () => {
-    const range = monthRange(visibleMonth);
-    const weekStart = startOfDisplayWeek(selectedDate);
+  const loadLessons = useCallback(async (dateText: string, month: string) => {
+    const range = monthRange(month);
+    const weekStart = startOfDisplayWeek(dateText);
     const weekEnd = weekStart.add(6, "day");
     const [monthLessons, weekLessons] = await Promise.all([
       lessonRepository.findBetween(range.start, range.end),
       lessonRepository.findBetween(weekStart.format("YYYY-MM-DD"), weekEnd.format("YYYY-MM-DD"))
     ]);
     setLessons([...new Map([...monthLessons, ...weekLessons].map((lesson) => [lesson.id, lesson])).values()]);
-  }, [selectedDate, visibleMonth]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      const currentDate = todayText();
+      const currentMonth = monthKeyFromDateText(currentDate);
+      setSelectedDate(currentDate);
+      setVisibleMonth(currentMonth);
+      loadLessons(currentDate, currentMonth);
+    }, [loadLessons])
   );
 
   const lessonById = useMemo(() => Object.fromEntries(lessons.map((lesson) => [lesson.id, lesson])), [lessons]);
@@ -204,18 +208,28 @@ export function CalendarScreen() {
 
   const handleDayPress = useCallback(
     (date: DateData) => {
-      const nextMonth = `${date.year}-${String(date.month).padStart(2, "0")}`;
+      const nextMonth = monthKeyFromDateText(date.dateString);
       if (nextMonth !== visibleMonth) {
         setVisibleMonth(nextMonth);
       }
       selectDate(date.dateString);
+      loadLessons(date.dateString, nextMonth);
     },
-    [selectDate, visibleMonth]
+    [loadLessons, selectDate, visibleMonth]
   );
 
-  const handleMonthChange = useCallback((date: DateData) => {
-    setVisibleMonth(`${date.year}-${String(date.month).padStart(2, "0")}`);
-  }, []);
+  const handleMonthChange = useCallback(
+    (date: DateData) => {
+      if (isSameDisplayWeek(date.dateString, selectedDate) && monthKeyFromDateText(date.dateString) !== monthKeyFromDateText(selectedDate)) {
+        return;
+      }
+
+      const nextMonth = monthKeyFromDateText(date.dateString);
+      setVisibleMonth(nextMonth);
+      loadLessons(selectedDate, nextMonth);
+    },
+    [loadLessons, selectedDate]
+  );
 
   const handleTimelineEventPress = useCallback(
     (event: TimelineEventProps) => {
@@ -289,6 +303,7 @@ export function CalendarScreen() {
               calendarWidth={calendarWidth}
               closeOnDayPress
               current={selectedDate}
+              customHeaderTitle={<CalendarHeaderTitle month={visibleMonth} />}
               disablePan={false}
               enableSwipeMonths
               firstDay={1}
@@ -341,6 +356,24 @@ export function CalendarScreen() {
 function startOfDisplayWeek(dateText: string) {
   const day = dayjs(dateText);
   return day.subtract((day.day() + 6) % 7, "day");
+}
+
+function isSameDisplayWeek(dateText: string, selectedDate: string) {
+  return startOfDisplayWeek(dateText).isSame(startOfDisplayWeek(selectedDate), "day");
+}
+
+function monthKeyFromDateText(dateText: string) {
+  return monthKey(new Date(`${dateText}T00:00:00`));
+}
+
+function CalendarHeaderTitle({ month }: { month: string }) {
+  const theme = useTheme();
+
+  return (
+    <Text selectable style={{ color: theme.colors.text, fontSize: 17, fontWeight: "700" }}>
+      {dayjs(`${month}-01`).format("YYYY年M月")}
+    </Text>
+  );
 }
 
 function lessonStatusColor(lesson: Lesson, theme: ReturnType<typeof useTheme>) {

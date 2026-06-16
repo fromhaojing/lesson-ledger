@@ -1,11 +1,20 @@
 import { getDatabase } from "@/db/database";
 
-const schema = `
+type Database = Awaited<ReturnType<typeof getDatabase>>;
+
+type Migration = {
+  version: number;
+  up: (db: Database) => Promise<void>;
+};
+
+const migrationTableSchema = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
   version INTEGER PRIMARY KEY,
   applied_at TEXT NOT NULL
 );
+`;
 
+const initialSchema = `
 CREATE TABLE IF NOT EXISTS import_batch (
   id TEXT PRIMARY KEY,
   filename TEXT NOT NULL,
@@ -63,14 +72,42 @@ export const defaultSettings = [
   ["theme_color", "mint"]
 ] as const;
 
+const migrations: Migration[] = [
+  {
+    version: 1,
+    async up(db) {
+      await db.execAsync(initialSchema);
+      await seedDefaultSettings(db);
+    }
+  }
+];
+
 export async function runMigrations() {
   const db = await getDatabase();
-  await db.execAsync(schema);
-  await db.runAsync(
-    "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
-    [1, new Date().toISOString()]
-  );
+  await db.execAsync(migrationTableSchema);
 
+  const appliedVersions = await getAppliedMigrationVersions(db);
+  for (const migration of migrations) {
+    if (appliedVersions.has(migration.version)) continue;
+
+    await db.withTransactionAsync(async () => {
+      await migration.up(db);
+      await db.runAsync("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)", [
+        migration.version,
+        new Date().toISOString()
+      ]);
+    });
+  }
+
+  await seedDefaultSettings(db);
+}
+
+async function getAppliedMigrationVersions(db: Database) {
+  const rows = await db.getAllAsync<{ version: number }>("SELECT version FROM schema_migrations");
+  return new Set(rows.map((row) => row.version));
+}
+
+async function seedDefaultSettings(db: Database) {
   for (const [key, value] of defaultSettings) {
     await db.runAsync("INSERT OR IGNORE INTO app_setting (key, value) VALUES (?, ?)", [key, value]);
   }

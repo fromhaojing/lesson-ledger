@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { StatusBar } from "expo-status-bar";
 import { Stack, usePathname, useRouter } from "expo-router";
@@ -29,6 +29,8 @@ export default function RootLayout() {
   const pathname = usePathname();
   const theme = useTheme();
   const [ready, setReady] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
   const headerTitle = getHeaderTitle(pathname);
   const extra = getHeaderExtra(pathname);
   const headerCommonOptions: any = {
@@ -52,19 +54,23 @@ export default function RootLayout() {
     let mounted = true;
 
     Promise.all([
-      bootstrapApp().catch((error) => {
-        console.warn("Failed to bootstrap app", error);
-      }),
+      bootstrapApp(),
       new Promise((resolve) => setTimeout(resolve, 1100))
     ])
-      .finally(() => {
+      .then(() => {
         if (mounted) setReady(true);
+      })
+      .catch((error) => {
+        console.warn("Failed to bootstrap app", error);
+        if (mounted) {
+          setBootstrapError(error instanceof Error ? error.message : "应用初始化失败，请重试。");
+        }
       });
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [bootstrapAttempt]);
 
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -106,7 +112,35 @@ export default function RootLayout() {
                 resizeMode="contain"
               />
             </View>
-            <ActivityIndicator color={theme.colors.primary} />
+            {bootstrapError ? (
+              <View style={{ alignItems: "center", gap: 12, paddingHorizontal: 24 }}>
+                <Text selectable style={{ color: theme.colors.text, fontSize: 17, fontWeight: "600", textAlign: "center" }}>
+                  初始化失败
+                </Text>
+                <Text selectable style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 20, textAlign: "center" }}>
+                  {bootstrapError}
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    setReady(false);
+                    setBootstrapError(null);
+                    setBootstrapAttempt((value) => value + 1);
+                  }}
+                  style={({ pressed }) => ({
+                    backgroundColor: theme.colors.primary,
+                    borderCurve: "continuous",
+                    borderRadius: 14,
+                    opacity: pressed ? 0.72 : 1,
+                    paddingHorizontal: 18,
+                    paddingVertical: 12
+                  })}
+                >
+                  <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "600" }}>重试</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <ActivityIndicator color={theme.colors.primary} />
+            )}
           </View>
           <StatusBar style={theme.scheme === "dark" ? "light" : "dark"} />
         </View>

@@ -4,6 +4,14 @@ import type { CreateLessonInput, Lesson, LessonStatus } from "@/modules/lessons/
 
 type Database = Awaited<ReturnType<typeof getDatabase>>;
 
+type CreateImportBatchInput = {
+  filename: string;
+  sourceUri?: string | null;
+  totalRows: number;
+  failedRows: number;
+  lessons: CreateLessonInput[];
+};
+
 type LessonRow = Omit<Lesson, "studentNames" | "importBatchId" | "dateText" | "startAt" | "endAt" | "courseType" | "defaultAmount" | "finalAmount" | "notificationId" | "notificationScheduledAt" | "confirmedAt" | "cancelledAt" | "createdAt" | "updatedAt"> & {
   import_batch_id: string | null;
   student_names: string;
@@ -60,6 +68,36 @@ export const lessonRepository = {
       }
     });
     return ids;
+  },
+
+  async createImportBatch(input: CreateImportBatchInput) {
+    const db = await getDatabase();
+    const batchId = createId("import");
+    const ids: string[] = [];
+    const now = new Date().toISOString();
+
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `INSERT INTO import_batch (
+          id, filename, source_uri, imported_at, total_rows, success_rows, failed_rows
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          batchId,
+          input.filename,
+          input.sourceUri ?? null,
+          now,
+          input.totalRows,
+          input.lessons.length,
+          input.failedRows
+        ]
+      );
+
+      for (const lesson of input.lessons) {
+        ids.push(await insertLesson(db, { ...lesson, importBatchId: batchId }));
+      }
+    });
+
+    return { batchId, ids };
   },
 
   async findById(id: string) {
@@ -187,31 +225,37 @@ export const lessonRepository = {
   async confirmAmount(id: string, amount: number, note?: string) {
     const db = await getDatabase();
     const now = new Date().toISOString();
-    await db.runAsync(
+    const result = await db.runAsync(
       `UPDATE lesson
        SET status = 'confirmed', final_amount = ?, confirmed_at = ?, note = COALESCE(?, note), updated_at = ?
-       WHERE id = ?`,
+       WHERE id = ? AND deleted_at IS NULL AND status IN ('scheduled', 'pending')`,
       [amount, now, note ?? null, now, id]
     );
+    assertUpdated(result.changes, "当前课程状态无法确认金额");
   },
 
   async markCancelled(id: string) {
     const db = await getDatabase();
     const now = new Date().toISOString();
-    await db.runAsync(
-      "UPDATE lesson SET status = 'cancelled', final_amount = 0, cancelled_at = ?, updated_at = ? WHERE id = ?",
+    const result = await db.runAsync(
+      `UPDATE lesson
+       SET status = 'cancelled', final_amount = 0, cancelled_at = ?, updated_at = ?
+       WHERE id = ? AND deleted_at IS NULL AND status IN ('scheduled', 'pending')`,
       [now, now, id]
     );
+    assertUpdated(result.changes, "当前课程状态无法取消");
   },
 
   async markAbsent(id: string, amount: number) {
     const db = await getDatabase();
     const now = new Date().toISOString();
-    await db.runAsync("UPDATE lesson SET status = 'absent', final_amount = ?, updated_at = ? WHERE id = ?", [
-      amount,
-      now,
-      id
-    ]);
+    const result = await db.runAsync(
+      `UPDATE lesson
+       SET status = 'absent', final_amount = ?, updated_at = ?
+       WHERE id = ? AND deleted_at IS NULL AND status IN ('scheduled', 'pending')`,
+      [amount, now, id]
+    );
+    assertUpdated(result.changes, "当前课程状态无法标记缺勤");
   },
 
   async updateNotificationId(id: string, notificationId: string | null, scheduledAt?: string | null) {
@@ -295,4 +339,10 @@ async function insertLesson(db: Database, input: CreateLessonInput) {
   );
 
   return id;
+}
+
+function assertUpdated(changes: number, message: string) {
+  if (changes === 0) {
+    throw new Error(message);
+  }
 }

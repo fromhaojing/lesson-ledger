@@ -1,9 +1,12 @@
-import { PropsWithChildren, useEffect, useState } from "react";
-import { Animated, Modal, Pressable, Text, TextInput, View, type PressableProps, type TextInputProps } from "react-native";
+import { PropsWithChildren, useState } from "react";
+import { Modal, Pressable, Text, TextInput, View, type PressableProps, type TextInputProps } from "react-native";
 import { Host, Picker } from "@expo/ui";
 
 import { useTheme } from "@/theme";
 import type { LessonStatus } from "@/modules/lessons/lesson.types";
+import { normalizeNumberWheelValue } from "@/utils/number";
+
+export { normalizeNumberWheelValue } from "@/utils/number";
 
 export function Card({ children, tone = "plain" }: PropsWithChildren<{ tone?: "plain" | "mint" | "dark" }>) {
   const theme = useTheme();
@@ -22,71 +25,6 @@ export function Card({ children, tone = "plain" }: PropsWithChildren<{ tone?: "p
       }}
     >
       {children}
-    </View>
-  );
-}
-
-export function Metric({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
-  const theme = useTheme();
-
-  return (
-    <View style={{ flex: 1, gap: 3, minWidth: 110 }}>
-      <Text selectable style={{ color: muted ? theme.colors.muted : theme.colors.text, fontSize: 13, fontWeight: "500" }}>
-        {label}
-      </Text>
-      <Text selectable style={{ color: theme.colors.text, fontSize: 23, fontVariant: ["tabular-nums"], fontWeight: "600" }}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-export function RollingMetric({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
-  const theme = useTheme();
-  const [progress] = useState(() => new Animated.Value(1));
-  const valueHeight = 30;
-
-  useEffect(() => {
-    progress.setValue(0);
-    const animation = Animated.timing(progress, {
-      toValue: 1,
-      duration: 420,
-      useNativeDriver: true
-    });
-
-    animation.start();
-
-    return () => animation.stop();
-  }, [progress, value]);
-
-  return (
-    <View style={{ flex: 1, gap: 3, minWidth: 110 }}>
-      <Text selectable style={{ color: muted ? theme.colors.muted : theme.colors.text, fontSize: 13, fontWeight: "500" }}>
-        {label}
-      </Text>
-      <View style={{ height: valueHeight, overflow: "hidden" }}>
-        <Animated.Text
-          key={value}
-          selectable
-          style={{
-            color: theme.colors.text,
-            fontSize: 23,
-            fontVariant: ["tabular-nums"],
-            fontWeight: "600",
-            lineHeight: valueHeight,
-            transform: [
-              {
-                translateY: progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [valueHeight, 0]
-                })
-              }
-            ]
-          }}
-        >
-          {value}
-        </Animated.Text>
-      </View>
     </View>
   );
 }
@@ -151,7 +89,7 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
 
 export function NumberWheelField({
   label,
-  max = 500,
+  max = 10000,
   min = 0,
   onChangeText,
   placeholder = "选择数字",
@@ -266,12 +204,6 @@ function NumberWheelSheet({
       </Pressable>
     </Modal>
   );
-}
-
-export function normalizeNumberWheelValue(value: string, min = 0, max = 500) {
-  const parsed = Math.round(Number(value));
-  if (!Number.isFinite(parsed)) return String(min);
-  return String(Math.min(max, Math.max(min, parsed)));
 }
 
 export function StatusPill({ status }: { status: LessonStatus | "active" }) {

@@ -10,7 +10,7 @@ import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import { syncPendingLessonBadge } from "@/modules/notifications/badge.service";
 import { syncLessonNotifications } from "@/modules/notifications/notification.service";
 import { getSetting } from "@/modules/settings/settings.repository";
-import { combineDateTime, dateTextFromDate, timeTextFromDate, todayText } from "@/utils/date";
+import { combineLessonDateTimeRange, dateTextFromDate, timeTextFromDate, todayText } from "@/utils/date";
 import { parseAmount } from "@/utils/money";
 import { useTheme } from "@/theme";
 
@@ -42,13 +42,14 @@ export function LessonFormScreen() {
         .filter(Boolean);
       if (studentNames.length === 0) throw new Error("请填写学生姓名");
       const fallbackAmount = await getSetting("default_amount", "150");
+      const { startAt, endAt } = combineLessonDateTimeRange(dateText, startTime, endTime);
 
       await lessonRepository.create({
         title: studentNames.join("、"),
         studentNames,
         dateText,
-        startAt: combineDateTime(dateText, startTime),
-        endAt: combineDateTime(dateText, endTime),
+        startAt,
+        endAt,
         grade: grade || null,
         courseType: courseType || null,
         defaultAmount: parseAmount(normalizeNumberWheelValue(amount || fallbackAmount)),

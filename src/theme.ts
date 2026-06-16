@@ -1,8 +1,9 @@
-import { Appearance, useColorScheme as useSystemColorScheme } from "react-native";
+import { Appearance } from "react-native";
 import { useSyncExternalStore } from "react";
 
 export type ThemeMode = "system" | "light" | "dark";
 export type ThemeColorKey = "mint" | "blue" | "purple" | "orange" | "rose";
+type ThemeScheme = "light" | "dark";
 
 type ThemeColorPreset = {
   key: ThemeColorKey;
@@ -128,6 +129,17 @@ export function subscribeThemeMode(listener: () => void) {
   };
 }
 
+function subscribeSystemColorScheme(listener: () => void) {
+  const subscription = Appearance.addChangeListener(listener);
+  return () => {
+    subscription.remove();
+  };
+}
+
+function getSystemColorScheme(): ThemeScheme {
+  return Appearance.getColorScheme() === "dark" ? "dark" : "light";
+}
+
 export function useThemeMode() {
   return useSyncExternalStore(subscribeThemeMode, getThemeMode, getThemeMode);
 }
@@ -139,8 +151,8 @@ export function useThemeColor() {
 export function useTheme() {
   const mode = useThemeMode();
   const themeColor = useThemeColor();
-  const systemScheme = useSystemColorScheme();
-  const resolvedScheme = mode === "system" ? systemScheme ?? "light" : mode;
+  const systemScheme = useSyncExternalStore(subscribeSystemColorScheme, getSystemColorScheme, getSystemColorScheme);
+  const resolvedScheme = mode === "system" ? systemScheme : mode;
   const baseColors = resolvedScheme === "dark" ? darkColors : lightColors;
   const preset = themeColorPresets.find((item) => item.key === themeColor) ?? themeColorPresets[0];
 

@@ -1,8 +1,10 @@
 import * as FileSystem from "expo-file-system/legacy";
+import * as Notifications from "expo-notifications";
 import * as Sharing from "expo-sharing";
 import * as XLSX from "xlsx";
 
 import { getDatabase } from "@/db/database";
+import { clearImportDraft } from "@/modules/imports/import-draft.store";
 import { cancelLessonNotifications } from "@/modules/notifications/notification.service";
 
 type ExportLessonRow = {
@@ -84,6 +86,28 @@ export async function clearAllUserData() {
     await db.runAsync("DELETE FROM import_batch");
   });
   await db.execAsync("VACUUM");
+  await clearImportDraft();
+  await clearExportCache();
+  await clearAppBadge();
+}
+
+async function clearAppBadge() {
+  try {
+    await Notifications.setBadgeCountAsync(0);
+  } catch {
+    // Badge support varies by platform and permission state; data clearing should still succeed.
+  }
+}
+
+async function clearExportCache() {
+  if (!FileSystem.cacheDirectory) return;
+
+  const filenames = await FileSystem.readDirectoryAsync(FileSystem.cacheDirectory);
+  await Promise.all(
+    filenames
+      .filter((filename) => filename.startsWith("课时记-数据导出-") && filename.endsWith(".xlsx"))
+      .map((filename) => FileSystem.deleteAsync(`${FileSystem.cacheDirectory}${filename}`, { idempotent: true }))
+  );
 }
 
 function toExportLessonRow(row: LessonExportRow): ExportLessonRow {

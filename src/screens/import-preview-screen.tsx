@@ -1,16 +1,16 @@
-import { useMemo, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
 import { Card, Field, NumberWheelField, PrimaryButton, normalizeNumberWheelValue } from "@/components/ui";
-import { clearImportDraft, getImportDraft } from "@/modules/imports/import-draft.store";
+import { clearImportDraft, getImportDraft, loadImportDraft, type ImportDraft } from "@/modules/imports/import-draft.store";
 import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import type { CreateLessonInput } from "@/modules/lessons/lesson.types";
 import { syncPendingLessonBadge } from "@/modules/notifications/badge.service";
 import { syncLessonNotifications } from "@/modules/notifications/notification.service";
 import { useTheme } from "@/theme";
-import { combineDateTime, parseDateText, parseTimeText } from "@/utils/date";
+import { combineLessonDateTimeRange, parseDateText, parseTimeText } from "@/utils/date";
 import { parseAmount } from "@/utils/money";
 
 type EditableImportRow = {
@@ -27,12 +27,38 @@ type EditableImportRow = {
 export function ImportPreviewScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const draft = getImportDraft();
+  const initialDraft = getImportDraft();
+  const [draft, setDraft] = useState<ImportDraft | null>(initialDraft);
   const [busy, setBusy] = useState(false);
-  const [rows, setRows] = useState<EditableImportRow[]>(() => draft?.preview.successRows.map(toEditableRow) ?? []);
+  const [loading, setLoading] = useState(!initialDraft);
+  const [rows, setRows] = useState<EditableImportRow[]>(() => initialDraft?.preview.successRows.map(toEditableRow) ?? []);
   const failedRows = draft?.preview.failedRows ?? [];
   const filename = draft?.filename ?? "";
   const totalRows = draft?.preview.totalRows ?? 0;
+
+  useEffect(() => {
+    if (draft) return;
+
+    let mounted = true;
+    loadImportDraft()
+      .then((nextDraft) => {
+        if (!mounted) return;
+        setDraft(nextDraft);
+        setRows(nextDraft?.preview.successRows.map(toEditableRow) ?? []);
+      })
+      .catch((error) => {
+        if (mounted) {
+          Alert.alert("读取导入草稿失败", error instanceof Error ? error.message : "请重新选择 Excel 文件。");
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [draft]);
 
   const canImport = rows.length > 0 && !busy;
   const summaryText = useMemo(
@@ -45,13 +71,21 @@ export function ImportPreviewScreen() {
   }
 
   async function confirmImport() {
+    if (!draft) return;
+
     setBusy(true);
     try {
       const inputs = rows.map(toCreateLessonInput);
-      await lessonRepository.createMany(inputs);
+      await lessonRepository.createImportBatch({
+        failedRows: failedRows.length,
+        filename: draft.filename,
+        lessons: inputs,
+        sourceUri: draft.sourceUri,
+        totalRows
+      });
       await syncLessonNotifications({ askPermission: true });
       await syncPendingLessonBadge();
-      clearImportDraft();
+      await clearImportDraft();
       Alert.alert("导入完成", `成功导入 ${inputs.length} 节课程。`);
       router.dismissAll();
     } catch (error) {
@@ -59,6 +93,14 @@ export function ImportPreviewScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <View style={{ alignItems: "center", backgroundColor: theme.colors.background, flex: 1, justifyContent: "center" }}>
+        <ActivityIndicator color={theme.colors.primary} />
+      </View>
+    );
   }
 
   if (!draft) {
@@ -77,32 +119,39 @@ export function ImportPreviewScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <SafeAreaScrollView contentContainerStyle={{ gap: 12, paddingHorizontal: 20 }}>
-        <Card tone="mint">
-          <Text selectable style={{ color: theme.colors.text, fontSize: 18, fontWeight: "600" }}>
-            {filename}
-          </Text>
-          <Text selectable style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 22 }}>
-            {summaryText}
-          </Text>
-          <PrimaryButton disabled={!canImport} onPress={confirmImport}>
-            {busy ? "导入中..." : "确认导入"}
-          </PrimaryButton>
-        </Card>
-
-        {failedRows.length > 0 ? (
-          <Card>
-            <Text style={{ color: theme.colors.danger, fontSize: 16, fontWeight: "600" }}>解析失败</Text>
-            {failedRows.slice(0, 6).map((row) => (
-              <Text key={row.rowIndex} selectable style={{ color: theme.colors.danger, fontSize: 13, lineHeight: 18 }}>
-                第 {row.rowIndex} 行：{row.reason}
+      <FlatList
+        contentContainerStyle={{ gap: 12, paddingBottom: 120, paddingHorizontal: 20 }}
+        data={rows}
+        keyExtractor={(_, index) => String(index)}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <View style={{ gap: 12 }}>
+            <Card tone="mint">
+              <Text selectable style={{ color: theme.colors.text, fontSize: 18, fontWeight: "600" }}>
+                {filename}
               </Text>
-            ))}
-          </Card>
-        ) : null}
+              <Text selectable style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 22 }}>
+                {summaryText}
+              </Text>
+              <PrimaryButton disabled={!canImport} onPress={confirmImport}>
+                {busy ? "导入中..." : "确认导入"}
+              </PrimaryButton>
+            </Card>
 
-        {rows.map((row, index) => (
-          <Card key={index}>
+            {failedRows.length > 0 ? (
+              <Card>
+                <Text style={{ color: theme.colors.danger, fontSize: 16, fontWeight: "600" }}>解析失败</Text>
+                {failedRows.slice(0, 6).map((row) => (
+                  <Text key={row.rowIndex} selectable style={{ color: theme.colors.danger, fontSize: 13, lineHeight: 18 }}>
+                    第 {row.rowIndex} 行：{row.reason}
+                  </Text>
+                ))}
+              </Card>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item: row, index }) => (
+          <Card>
             <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: "600" }}>课程 {index + 1}</Text>
             <Field label="日期" value={row.dateText} onChangeText={(value) => updateRow(index, { dateText: value })} placeholder="2026-05-31" />
             <View style={{ flexDirection: "row", gap: 8 }}>
@@ -131,8 +180,8 @@ export function ImportPreviewScreen() {
             <Field label="课程类型" value={row.courseType} onChangeText={(value) => updateRow(index, { courseType: value })} placeholder="一对一" />
             <Field label="备注" value={row.note} onChangeText={(value) => updateRow(index, { note: value })} placeholder="可选" />
           </Card>
-        ))}
-      </SafeAreaScrollView>
+        )}
+      />
     </View>
   );
 }
@@ -154,6 +203,7 @@ function toCreateLessonInput(row: EditableImportRow): CreateLessonInput {
   const dateText = parseDateText(row.dateText);
   const startTime = parseTimeText(row.startTime);
   const endTime = parseTimeText(row.endTime);
+  const { startAt, endAt } = combineLessonDateTimeRange(dateText, startTime, endTime);
   const studentNames = row.students
     .split(/[\/、,，]/)
     .map((item) => item.trim())
@@ -165,8 +215,8 @@ function toCreateLessonInput(row: EditableImportRow): CreateLessonInput {
     title: studentNames.join("、"),
     studentNames,
     dateText,
-    startAt: combineDateTime(dateText, startTime),
-    endAt: combineDateTime(dateText, endTime),
+    startAt,
+    endAt,
     grade: row.grade.trim() || null,
     courseType: row.courseType.trim() || null,
     defaultAmount: parseAmount(normalizeNumberWheelValue(row.amount)),
