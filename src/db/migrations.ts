@@ -68,7 +68,7 @@ export const defaultSettings = [
   ["notification_schedule_limit", "50"],
   ["currency", "CNY"],
   ["default_amount", "150"],
-  ["theme_mode", "system"],
+  ["theme_mode", "unspecified"],
   ["theme_color", "mint"]
 ] as const;
 

@@ -1,27 +1,54 @@
 import { PropsWithChildren, useState } from "react";
-import { Modal, Pressable, Text, TextInput, View, type PressableProps, type TextInputProps } from "react-native";
+import {
+  Modal,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+  type PressableProps,
+  type TextInputProps,
+} from "react-native";
 import { Host, Picker } from "@expo/ui";
 
 import { useTheme } from "@/theme";
 import type { LessonStatus } from "@/modules/lessons/lesson.types";
-import { normalizeNumberWheelValue } from "@/utils/number";
+import {
+  DEFAULT_NUMBER_WHEEL_MAX,
+  DEFAULT_NUMBER_WHEEL_MIN,
+  DEFAULT_NUMBER_WHEEL_STEP,
+  normalizeNumberWheelValue,
+} from "@/utils/number";
 
-export { normalizeNumberWheelValue } from "@/utils/number";
+export {
+  DEFAULT_NUMBER_WHEEL_MAX,
+  DEFAULT_NUMBER_WHEEL_MIN,
+  DEFAULT_NUMBER_WHEEL_STEP,
+  normalizeNumberWheelValue,
+} from "@/utils/number";
 
-export function Card({ children, tone = "plain" }: PropsWithChildren<{ tone?: "plain" | "mint" | "dark" }>) {
+export function Card({
+  children,
+  tone = "plain",
+}: PropsWithChildren<{ tone?: "plain" | "mint" | "dark" }>) {
   const theme = useTheme();
   const isDark = tone === "dark";
   return (
     <View
       style={{
-        backgroundColor: isDark ? (theme.scheme === "dark" ? "#22313D" : theme.colors.text) : tone === "mint" ? theme.colors.surfaceSoft : theme.colors.surface,
+        backgroundColor: isDark
+          ? theme.scheme === "dark"
+            ? "#22313D"
+            : theme.colors.text
+          : tone === "mint"
+            ? "#FFFFFF"
+            : theme.colors.surface,
         borderColor: isDark ? "transparent" : theme.colors.line,
         borderCurve: "continuous",
         borderRadius: theme.radius.lg,
         borderWidth: 1,
         boxShadow: "0 8px 18px rgba(20, 33, 61, 0.045)",
         gap: 10,
-        padding: 14
+        padding: 14,
       }}
     >
       {children}
@@ -33,9 +60,16 @@ export function PrimaryButton({
   children,
   variant = "primary",
   ...props
-}: PropsWithChildren<PressableProps & { variant?: "primary" | "quiet" | "danger" }>) {
+}: PropsWithChildren<
+  PressableProps & { variant?: "primary" | "quiet" | "danger" }
+>) {
   const theme = useTheme();
-  const backgroundColor = variant === "primary" ? theme.colors.primary : variant === "danger" ? theme.colors.danger : theme.colors.surfaceSoft;
+  const backgroundColor =
+    variant === "primary"
+      ? theme.colors.primary
+      : variant === "danger"
+        ? theme.colors.danger
+        : "#FFFFFF";
   const color = variant === "quiet" ? theme.colors.primaryDark : "#FFFFFF";
 
   return (
@@ -50,9 +84,11 @@ export function PrimaryButton({
           minHeight: 50,
           justifyContent: "center",
           opacity: pressed ? 0.76 : props.disabled ? 0.46 : 1,
-          paddingHorizontal: 18
+          paddingHorizontal: 18,
         },
-        typeof props.style === "function" ? props.style({ pressed, hovered: false }) : props.style
+        typeof props.style === "function"
+          ? props.style({ pressed, hovered: false })
+          : props.style,
       ]}
     >
       <Text style={{ color, fontSize: 16, fontWeight: "600" }}>{children}</Text>
@@ -65,7 +101,11 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
 
   return (
     <View style={{ gap: 6 }}>
-      <Text style={{ color: theme.colors.muted, fontSize: 13, fontWeight: "500" }}>{label}</Text>
+      <Text
+        style={{ color: theme.colors.muted, fontSize: 13, fontWeight: "500" }}
+      >
+        {label}
+      </Text>
       <TextInput
         {...props}
         placeholderTextColor="#A1AAB8"
@@ -78,9 +118,9 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
             color: theme.colors.text,
             fontSize: 16,
             minHeight: 50,
-            paddingHorizontal: 14
+            paddingHorizontal: 14,
           },
-          props.style
+          props.style,
         ]}
       />
     </View>
@@ -89,28 +129,34 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
 
 export function NumberWheelField({
   label,
-  max = 10000,
-  min = 0,
+  max = DEFAULT_NUMBER_WHEEL_MAX,
+  min = DEFAULT_NUMBER_WHEEL_MIN,
   onChangeText,
   placeholder = "选择数字",
+  step = DEFAULT_NUMBER_WHEEL_STEP,
   suffix,
-  value
+  value,
 }: {
   label: string;
   max?: number;
   min?: number;
   onChangeText: (value: string) => void;
   placeholder?: string;
+  step?: number;
   suffix?: string;
   value: string;
 }) {
   const theme = useTheme();
   const [visible, setVisible] = useState(false);
-  const normalizedValue = normalizeNumberWheelValue(value, min, max);
+  const normalizedValue = normalizeNumberWheelValue(value, min, max, step);
 
   return (
     <View style={{ gap: 6 }}>
-      <Text style={{ color: theme.colors.muted, fontSize: 13, fontWeight: "500" }}>{label}</Text>
+      <Text
+        style={{ color: theme.colors.muted, fontSize: 13, fontWeight: "500" }}
+      >
+        {label}
+      </Text>
       <Pressable
         onPress={() => setVisible(true)}
         style={({ pressed }) => ({
@@ -123,11 +169,20 @@ export function NumberWheelField({
           flexDirection: "row",
           minHeight: 50,
           opacity: pressed ? 0.72 : 1,
-          paddingHorizontal: 14
+          paddingHorizontal: 14,
         })}
       >
-          <Text style={{ color: value ? theme.colors.text : "#A1AAB8", flex: 1, fontSize: 16, fontVariant: ["tabular-nums"] }}>
-          {value ? `${normalizedValue}${suffix ? ` ${suffix}` : ""}` : placeholder}
+        <Text
+          style={{
+            color: value ? theme.colors.text : "#A1AAB8",
+            flex: 1,
+            fontSize: 16,
+            fontVariant: ["tabular-nums"],
+          }}
+        >
+          {value
+            ? `${normalizedValue}${suffix ? ` ${suffix}` : ""}`
+            : placeholder}
         </Text>
       </Pressable>
       {visible ? (
@@ -141,6 +196,7 @@ export function NumberWheelField({
             onChangeText(nextValue);
             setVisible(false);
           }}
+          step={step}
           suffix={suffix}
         />
       ) : null}
@@ -155,7 +211,8 @@ function NumberWheelSheet({
   min,
   onClose,
   onSelect,
-  suffix
+  step,
+  suffix,
 }: {
   initialValue: string;
   label: string;
@@ -163,15 +220,27 @@ function NumberWheelSheet({
   min: number;
   onClose: () => void;
   onSelect: (value: string) => void;
+  step: number;
   suffix?: string;
 }) {
   const theme = useTheme();
   const [draftValue, setDraftValue] = useState(initialValue);
-  const options = Array.from({ length: max - min + 1 }, (_, index) => String(min + index));
+  const normalizedStep = Math.max(1, Math.round(step));
+  const options = Array.from(
+    { length: Math.floor((max - min) / normalizedStep) + 1 },
+    (_, index) => String(min + index * normalizedStep),
+  );
 
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible>
-      <Pressable onPress={onClose} style={{ backgroundColor: "rgba(0, 0, 0, 0.24)", flex: 1, justifyContent: "flex-end" }}>
+      <Pressable
+        onPress={onClose}
+        style={{
+          backgroundColor: "rgba(0, 0, 0, 0.24)",
+          flex: 1,
+          justifyContent: "flex-end",
+        }}
+      >
         <Pressable
           style={{
             backgroundColor: theme.colors.surface,
@@ -179,23 +248,68 @@ function NumberWheelSheet({
             borderTopRightRadius: 24,
             maxHeight: "62%",
             paddingBottom: 24,
-            paddingTop: 8
+            paddingTop: 8,
           }}
         >
           <View style={{ alignItems: "center", paddingBottom: 8 }}>
-            <View style={{ backgroundColor: theme.colors.line, borderRadius: 999, height: 4, width: 42 }} />
+            <View
+              style={{
+                backgroundColor: theme.colors.line,
+                borderRadius: 999,
+                height: 4,
+                width: 42,
+              }}
+            />
           </View>
-          <View style={{ alignItems: "center", flexDirection: "row", minHeight: 44, paddingHorizontal: 18 }}>
-            <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17, fontWeight: "600" }}>{label}</Text>
+          <View
+            style={{
+              alignItems: "center",
+              flexDirection: "row",
+              minHeight: 44,
+              paddingHorizontal: 18,
+            }}
+          >
+            <Text
+              style={{
+                color: theme.colors.text,
+                flex: 1,
+                fontSize: 17,
+                fontWeight: "600",
+              }}
+            >
+              {label}
+            </Text>
             <Pressable onPress={() => onSelect(draftValue)} hitSlop={10}>
-              <Text style={{ color: theme.colors.primary, fontSize: 15, fontWeight: "600" }}>完成</Text>
+              <Text
+                style={{
+                  color: theme.colors.primary,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              >
+                完成
+              </Text>
             </Pressable>
           </View>
-          <View style={{ height: 220, justifyContent: "center", paddingHorizontal: 18 }}>
+          <View
+            style={{
+              height: 220,
+              justifyContent: "center",
+              paddingHorizontal: 18,
+            }}
+          >
             <Host colorScheme={theme.scheme} style={{ flex: 1 }}>
-              <Picker appearance="wheel" selectedValue={draftValue} onValueChange={setDraftValue}>
+              <Picker
+                appearance="wheel"
+                selectedValue={draftValue}
+                onValueChange={setDraftValue}
+              >
                 {options.map((item) => (
-                  <Picker.Item key={item} label={`${item}${suffix ? ` ${suffix}` : ""}`} value={item} />
+                  <Picker.Item
+                    key={item}
+                    label={`${item}${suffix ? ` ${suffix}` : ""}`}
+                    value={item}
+                  />
                 ))}
               </Picker>
             </Host>
@@ -208,19 +322,27 @@ function NumberWheelSheet({
 
 export function StatusPill({ status }: { status: LessonStatus | "active" }) {
   const theme = useTheme();
-  const meta =
-    {
-      active: ["已开始", theme.colors.primary],
-      scheduled: ["未开始", theme.colors.muted],
-      pending: ["待确认", theme.colors.warning],
-      confirmed: ["已确认", theme.colors.success],
-      cancelled: ["已取消", theme.colors.danger],
-      absent: ["缺勤", theme.colors.purple]
-    }[status] ?? ["未知", theme.colors.muted];
+  const meta = {
+    active: ["已开始", theme.colors.primary],
+    scheduled: ["未开始", theme.colors.muted],
+    pending: ["待确认", theme.colors.warning],
+    confirmed: ["已确认", theme.colors.success],
+    cancelled: ["已取消", theme.colors.danger],
+    absent: ["缺勤", theme.colors.purple],
+  }[status] ?? ["未知", theme.colors.muted];
 
   return (
-    <View style={{ backgroundColor: `${meta[1]}18`, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
-      <Text style={{ color: meta[1], fontSize: 12, fontWeight: "600" }}>{meta[0]}</Text>
+    <View
+      style={{
+        backgroundColor: `${meta[1]}18`,
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+      }}
+    >
+      <Text style={{ color: meta[1], fontSize: 12, fontWeight: "600" }}>
+        {meta[0]}
+      </Text>
     </View>
   );
 }

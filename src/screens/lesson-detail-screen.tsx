@@ -63,11 +63,6 @@ export function LessonDetailScreen() {
     ]);
   }
 
-  function confirmAmount() {
-    if (!lesson) return;
-    router.push(`/lessons/${lesson.id}/confirm`);
-  }
-
   if (!lesson) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -107,9 +102,6 @@ export function LessonDetailScreen() {
 
         {canAct ? (
           <View style={{ gap: 10 }}>
-            <PrimaryButton onPress={confirmAmount}>
-              确认金额
-            </PrimaryButton>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <PrimaryButton variant="quiet" onPress={markAbsent} style={{ flex: 1 }}>
                 标记缺勤

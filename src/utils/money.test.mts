@@ -19,3 +19,9 @@ test("normalizeNumberWheelValue no longer clamps common lesson amounts at 500", 
   assert.equal(normalizeNumberWheelValue("800"), "800");
   assert.equal(normalizeNumberWheelValue("12000"), "10000");
 });
+
+test("normalizeNumberWheelValue snaps values to wheel step", () => {
+  assert.equal(normalizeNumberWheelValue("153", 50, 500, 5), "155");
+  assert.equal(normalizeNumberWheelValue("51", 50, 500, 5), "50");
+  assert.equal(normalizeNumberWheelValue("999", 50, 500, 5), "500");
+});

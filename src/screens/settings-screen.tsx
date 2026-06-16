@@ -1,16 +1,35 @@
-import { Children, cloneElement, isValidElement, useCallback, useState, type ReactNode } from "react";
-import { Alert, Linking, Pressable, Switch, Text, View, type ColorValue } from "react-native";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  Alert,
+  Linking,
+  Pressable,
+  Switch,
+  Text,
+  View,
+  type ColorValue,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
 
 import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
-import { clearAllUserData, exportDataToExcel, getLocalDataSize } from "@/modules/data/data-management.service";
+import {
+  clearAllUserData,
+  exportDataToExcel,
+  getLocalDataSize,
+} from "@/modules/data/data-management.service";
 import {
   getNotificationsEnabled,
   requestNotificationPermission,
   setNotificationsEnabled,
-  syncLessonNotifications
+  syncLessonNotifications,
 } from "@/modules/notifications/notification.service";
 import { getSetting, setSetting } from "@/modules/settings/settings.repository";
 import {
@@ -22,13 +41,29 @@ import {
   type ThemeMode,
   useTheme,
   useThemeColor,
-  useThemeMode
+  useThemeMode,
 } from "@/theme";
-import { NumberWheelField, PrimaryButton, normalizeNumberWheelValue } from "@/components/ui";
+import {
+  DEFAULT_NUMBER_WHEEL_MAX,
+  DEFAULT_NUMBER_WHEEL_MIN,
+  DEFAULT_NUMBER_WHEEL_STEP,
+  NumberWheelField,
+  PrimaryButton,
+  normalizeNumberWheelValue,
+} from "@/components/ui";
 
 type ReminderTiming = "before" | "after";
 
 const APP_VERSION = "1.0.0";
+
+function normalizeDefaultAmount(value: string) {
+  return normalizeNumberWheelValue(
+    value,
+    DEFAULT_NUMBER_WHEEL_MIN,
+    DEFAULT_NUMBER_WHEEL_MAX,
+    DEFAULT_NUMBER_WHEEL_STEP,
+  );
+}
 
 export function SettingsScreen() {
   const router = useRouter();
@@ -43,14 +78,16 @@ export function SettingsScreen() {
   const load = useCallback(async () => {
     setRemind(await getSetting("remind_before_minutes", "5"));
     setRemindTiming(await getReminderTimingSetting());
-    setDefaultAmount(await getSetting("default_amount", "150"));
+    setDefaultAmount(
+      normalizeDefaultAmount(await getSetting("default_amount", "150")),
+    );
     setNotificationStatus(await getNotificationStatusLabel());
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   return (
@@ -79,7 +116,9 @@ export function SettingsScreen() {
           icon="school-outline"
           iconBackground="#30B0A3"
           title="课程默认值"
-          value={`${defaultAmount} 元 · ${reminderTimingLabel(remindTiming)} ${remind} 分钟`}
+          value={`${normalizeDefaultAmount(defaultAmount)} 元 · ${reminderTimingLabel(
+            remindTiming,
+          )} ${remind} 分钟`}
           onPress={() => router.push("/settings/defaults")}
         />
         <SettingsRow
@@ -122,9 +161,21 @@ export function AppearanceSettingsScreen() {
   return (
     <SettingsDetail>
       <SettingsGroup title="显示">
-        <ChoiceRow title="跟随系统" selected={themeMode === "system"} onPress={() => changeThemeMode("system")} />
-        <ChoiceRow title="浅色" selected={themeMode === "light"} onPress={() => changeThemeMode("light")} />
-        <ChoiceRow title="深色" selected={themeMode === "dark"} onPress={() => changeThemeMode("dark")} />
+        <ChoiceRow
+          title="跟随系统"
+          selected={themeMode === "unspecified"}
+          onPress={() => changeThemeMode("unspecified")}
+        />
+        <ChoiceRow
+          title="浅色"
+          selected={themeMode === "light"}
+          onPress={() => changeThemeMode("light")}
+        />
+        <ChoiceRow
+          title="深色"
+          selected={themeMode === "dark"}
+          onPress={() => changeThemeMode("dark")}
+        />
       </SettingsGroup>
       <FooterText>选择跟随系统后，课时记会使用 iOS 当前的外观设置。</FooterText>
     </SettingsDetail>
@@ -152,7 +203,9 @@ export function ThemeColorSettingsScreen() {
           />
         ))}
       </SettingsGroup>
-      <FooterText>主题色会用于底部标签、按钮、日历选中态和页面强调色，并保存在本机。</FooterText>
+      <FooterText>
+        主题色会用于底部标签、按钮、日历选中态和页面强调色，并保存在本机。
+      </FooterText>
     </SettingsDetail>
   );
 }
@@ -165,19 +218,27 @@ export function DefaultSettingsScreen() {
   const load = useCallback(async () => {
     setRemind(await getSetting("remind_before_minutes", "5"));
     setRemindTiming(await getReminderTimingSetting());
-    setDefaultAmount(await getSetting("default_amount", "150"));
+    setDefaultAmount(
+      normalizeDefaultAmount(await getSetting("default_amount", "150")),
+    );
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   async function save() {
-    await setSetting("remind_before_minutes", normalizeNumberWheelValue(remind || "5", 1, 120));
+    await setSetting(
+      "remind_before_minutes",
+      normalizeNumberWheelValue(remind || "5", 1, 120),
+    );
     await setSetting("remind_timing", remindTiming);
-    await setSetting("default_amount", normalizeNumberWheelValue(defaultAmount || "150"));
+    await setSetting(
+      "default_amount",
+      normalizeDefaultAmount(defaultAmount || "150"),
+    );
     await syncLessonNotifications();
     Alert.alert("已保存", "课程默认值已经更新。");
   }
@@ -186,13 +247,37 @@ export function DefaultSettingsScreen() {
     <SettingsDetail>
       <SettingsGroup title="新课程">
         <View style={{ gap: 10, padding: 16 }}>
-          <NumberWheelField label="默认课程金额" suffix="元" value={defaultAmount} onChangeText={setDefaultAmount} />
-          <NumberWheelField label="提醒间隔" min={1} max={120} suffix="分钟" value={remind} onChangeText={setRemind} />
+          <NumberWheelField
+            label="默认课程金额"
+            min={DEFAULT_NUMBER_WHEEL_MIN}
+            max={DEFAULT_NUMBER_WHEEL_MAX}
+            step={DEFAULT_NUMBER_WHEEL_STEP}
+            suffix="元"
+            value={defaultAmount}
+            onChangeText={setDefaultAmount}
+          />
+          <NumberWheelField
+            label="提醒间隔"
+            min={1}
+            max={120}
+            step={1}
+            suffix="分钟"
+            value={remind}
+            onChangeText={setRemind}
+          />
         </View>
       </SettingsGroup>
       <SettingsGroup title="提醒时间">
-        <ChoiceRow title="课程结束前提醒" selected={remindTiming === "before"} onPress={() => setRemindTiming("before")} />
-        <ChoiceRow title="课程结束后提醒" selected={remindTiming === "after"} onPress={() => setRemindTiming("after")} />
+        <ChoiceRow
+          title="课程结束前提醒"
+          selected={remindTiming === "before"}
+          onPress={() => setRemindTiming("before")}
+        />
+        <ChoiceRow
+          title="课程结束后提醒"
+          selected={remindTiming === "after"}
+          onPress={() => setRemindTiming("after")}
+        />
       </SettingsGroup>
       <PrimaryButton onPress={save}>保存</PrimaryButton>
     </SettingsDetail>
@@ -212,7 +297,7 @@ export function NotificationSettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   async function enableNotification() {
@@ -222,10 +307,14 @@ export function NotificationSettingsScreen() {
     const granted = await requestNotificationPermission();
     if (!granted) {
       setSystemGranted(false);
-      Alert.alert("系统通知未开启", "需要在 iOS 设置里允许课时记发送通知，课程提醒才会生效。", [
-        { text: "稍后", style: "cancel" },
-        { text: "去设置", onPress: () => Linking.openSettings() }
-      ]);
+      Alert.alert(
+        "系统通知未开启",
+        "需要在 iOS 设置里允许课时记发送通知，课程提醒才会生效。",
+        [
+          { text: "稍后", style: "cancel" },
+          { text: "去设置", onPress: () => Linking.openSettings() },
+        ],
+      );
       return;
     }
 
@@ -239,21 +328,25 @@ export function NotificationSettingsScreen() {
       return;
     }
 
-    Alert.alert("关闭课程提醒？", "关闭后，已安排的课程结束提醒会被取消。你可以随时回来重新开启。", [
-      {
-        text: "取消",
-        style: "cancel",
-        onPress: () => setAppEnabled(true)
-      },
-      {
-        text: "关闭",
-        style: "destructive",
-        onPress: async () => {
-          await setNotificationsEnabled(false);
-          setAppEnabled(false);
-        }
-      }
-    ]);
+    Alert.alert(
+      "关闭课程提醒？",
+      "关闭后，已安排的课程结束提醒会被取消。你可以随时回来重新开启。",
+      [
+        {
+          text: "取消",
+          style: "cancel",
+          onPress: () => setAppEnabled(true),
+        },
+        {
+          text: "关闭",
+          style: "destructive",
+          onPress: async () => {
+            await setNotificationsEnabled(false);
+            setAppEnabled(false);
+          },
+        },
+      ],
+    );
   }
 
   const enabled = appEnabled && systemGranted;
@@ -261,7 +354,11 @@ export function NotificationSettingsScreen() {
   return (
     <SettingsDetail>
       <SettingsGroup title="提醒">
-        <SwitchRow title="课程结束提醒" value={enabled} onValueChange={toggleNotification} />
+        <SwitchRow
+          title="课程结束提醒"
+          value={enabled}
+          onValueChange={toggleNotification}
+        />
       </SettingsGroup>
       <SettingsGroup title="系统">
         <SettingsActionRow
@@ -270,7 +367,10 @@ export function NotificationSettingsScreen() {
           onPress={() => Linking.openSettings()}
         />
       </SettingsGroup>
-      <FooterText>此开关会同时参考 iOS 系统通知权限。系统通知未允许时，课时记不会自行显示为可提醒状态。</FooterText>
+      <FooterText>
+        此开关会同时参考 iOS
+        系统通知权限。系统通知未允许时，课时记不会自行显示为可提醒状态。
+      </FooterText>
     </SettingsDetail>
   );
 }
@@ -286,7 +386,7 @@ export function PrivacySettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   async function exportData() {
@@ -294,43 +394,60 @@ export function PrivacySettingsScreen() {
     try {
       await exportDataToExcel();
     } catch (error) {
-      Alert.alert("导出失败", error instanceof Error ? error.message : "请稍后再试。");
+      Alert.alert(
+        "导出失败",
+        error instanceof Error ? error.message : "请稍后再试。",
+      );
     } finally {
       setBusy(false);
     }
   }
 
   function confirmClearData() {
-    Alert.alert("清除课程数据？", "这会删除本机保存的课程和导入记录，保留外观、通知和课程默认值。建议先导出备份。", [
-      { text: "取消", style: "cancel" },
-      {
-        text: "继续",
-        style: "destructive",
-        onPress: confirmClearDataAgain
-      }
-    ]);
+    Alert.alert(
+      "清除课程数据？",
+      "这会删除本机保存的课程和导入记录，保留外观、通知和课程默认值。建议先导出备份。",
+      [
+        { text: "取消", style: "cancel" },
+        {
+          text: "继续",
+          style: "destructive",
+          onPress: confirmClearDataAgain,
+        },
+      ],
+    );
   }
 
   function confirmClearDataAgain() {
-    Alert.alert("再次确认清除", "清除后无法恢复。确定要删除课时记在本机保存的课程和导入记录吗？", [
-      { text: "取消", style: "cancel" },
-      {
-        text: "清除课程数据",
-        style: "destructive",
-        onPress: async () => {
-          setBusy(true);
-          try {
-            await clearAllUserData();
-            await load();
-            Alert.alert("已清除", "课程和导入记录已经清除，外观、通知和课程默认值已保留。");
-          } catch (error) {
-            Alert.alert("清除失败", error instanceof Error ? error.message : "请稍后再试。");
-          } finally {
-            setBusy(false);
-          }
-        }
-      }
-    ]);
+    Alert.alert(
+      "再次确认清除",
+      "清除后无法恢复。确定要删除课时记在本机保存的课程和导入记录吗？",
+      [
+        { text: "取消", style: "cancel" },
+        {
+          text: "清除课程数据",
+          style: "destructive",
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await clearAllUserData();
+              await load();
+              Alert.alert(
+                "已清除",
+                "课程和导入记录已经清除，外观、通知和课程默认值已保留。",
+              );
+            } catch (error) {
+              Alert.alert(
+                "清除失败",
+                error instanceof Error ? error.message : "请稍后再试。",
+              );
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -340,10 +457,23 @@ export function PrivacySettingsScreen() {
         <InfoRow title="本地数据占用" value={storageSize} />
       </SettingsGroup>
       <SettingsGroup title="管理">
-        <SettingsActionRow title="导出数据" value={busy ? "处理中" : "Excel"} onPress={exportData} />
-        <SettingsActionRow title="清除课程数据" value="" destructive onPress={confirmClearData} />
+        <SettingsActionRow
+          title="导出数据"
+          value={busy ? "处理中" : "Excel"}
+          onPress={exportData}
+        />
+        <SettingsActionRow
+          title="清除课程数据"
+          value=""
+          destructive
+          onPress={confirmClearData}
+        />
       </SettingsGroup>
-      <FooterText>当前版本使用本地 SQLite 数据库存放课程、金额、设置和导入记录。清除课程数据会保留设置；删除 App 会同时删除这些本地数据。</FooterText>
+      <FooterText>
+        当前版本使用本地 SQLite
+        数据库存放课程、金额、设置和导入记录。清除课程数据会保留设置；删除 App
+        会同时删除这些本地数据。
+      </FooterText>
     </SettingsDetail>
   );
 }
@@ -355,7 +485,9 @@ export function AboutSettingsScreen() {
         <InfoRow title="名称" value="课时记" />
         <InfoRow title="版本" value={APP_VERSION} />
       </SettingsGroup>
-      <FooterText>课时记用于在本机记录课程、学生、课时金额和提醒设置，帮助你快速查看待确认课程与收入统计。</FooterText>
+      <FooterText>
+        课时记用于在本机记录课程、学生、课时金额和提醒设置，帮助你快速查看待确认课程与收入统计。
+      </FooterText>
     </SettingsDetail>
   );
 }
@@ -373,14 +505,27 @@ function SettingsDetail({ children }: { children: ReactNode }) {
   );
 }
 
-function SettingsGroup({ children, title }: { children: ReactNode; title?: string }) {
+function SettingsGroup({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title?: string;
+}) {
   const theme = useTheme();
   const childArray = Children.toArray(children);
 
   return (
     <View style={{ gap: 5, marginBottom: title ? 0 : 14 }}>
       {title ? (
-        <Text style={{ color: theme.colors.muted, fontSize: 13, paddingHorizontal: 16, textTransform: "uppercase" }}>
+        <Text
+          style={{
+            color: theme.colors.muted,
+            fontSize: 13,
+            paddingHorizontal: 16,
+            textTransform: "uppercase",
+          }}
+        >
           {title}
         </Text>
       ) : null}
@@ -391,13 +536,16 @@ function SettingsGroup({ children, title }: { children: ReactNode; title?: strin
           borderCurve: "continuous",
           borderRadius: theme.radius.lg,
           borderWidth: 1,
-          overflow: "hidden"
+          overflow: "hidden",
         }}
       >
         {childArray.map((child, index) =>
-          isValidElement<{ showDivider?: boolean }>(child) && child.type === SettingsRow
-            ? cloneElement(child, { showDivider: index < childArray.length - 1 })
-            : child
+          isValidElement<{ showDivider?: boolean }>(child) &&
+          child.type === SettingsRow
+            ? cloneElement(child, {
+                showDivider: index < childArray.length - 1,
+              })
+            : child,
         )}
       </View>
     </View>
@@ -410,7 +558,7 @@ function SettingsRow({
   onPress,
   showDivider = true,
   title,
-  value
+  value,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   iconBackground: ColorValue;
@@ -431,7 +579,7 @@ function SettingsRow({
         flexDirection: "row",
         minHeight: 46,
         paddingLeft: 16,
-        paddingRight: 12
+        paddingRight: 12,
       })}
     >
       <View
@@ -442,7 +590,7 @@ function SettingsRow({
           borderRadius: 7,
           height: 29,
           justifyContent: "center",
-          width: 29
+          width: 29,
         }}
       >
         <Ionicons name={icon} size={18} color="#FFFFFF" />
@@ -456,11 +604,16 @@ function SettingsRow({
           flexDirection: "row",
           gap: 8,
           marginLeft: 12,
-          minHeight: 46
+          minHeight: 46,
         }}
       >
-        <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>{title}</Text>
-        <Text numberOfLines={1} style={{ color: theme.colors.muted, fontSize: 17, maxWidth: 190 }}>
+        <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>
+          {title}
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={{ color: theme.colors.muted, fontSize: 17, maxWidth: 190 }}
+        >
           {value}
         </Text>
         <Ionicons name="chevron-forward" size={17} color={theme.colors.muted} />
@@ -469,7 +622,15 @@ function SettingsRow({
   );
 }
 
-function ChoiceRow({ onPress, selected, title }: { onPress: () => void; selected: boolean; title: string }) {
+function ChoiceRow({
+  onPress,
+  selected,
+  title,
+}: {
+  onPress: () => void;
+  selected: boolean;
+  title: string;
+}) {
   const theme = useTheme();
 
   return (
@@ -480,11 +641,15 @@ function ChoiceRow({ onPress, selected, title }: { onPress: () => void; selected
         backgroundColor: pressed ? theme.colors.surfaceSoft : theme.colors.surface,
         flexDirection: "row",
         minHeight: 46,
-        paddingHorizontal: 16
+        paddingHorizontal: 16,
       })}
     >
-      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>{title}</Text>
-      {selected ? <Ionicons name="checkmark" color={theme.colors.primary} size={22} /> : null}
+      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>
+        {title}
+      </Text>
+      {selected ? (
+        <Ionicons name="checkmark" color={theme.colors.primary} size={22} />
+      ) : null}
     </Pressable>
   );
 }
@@ -493,7 +658,7 @@ function ColorChoiceRow({
   color,
   onPress,
   selected,
-  title
+  title,
 }: {
   color: string;
   onPress: () => void;
@@ -510,7 +675,7 @@ function ColorChoiceRow({
         backgroundColor: pressed ? theme.colors.surfaceSoft : theme.colors.surface,
         flexDirection: "row",
         minHeight: 50,
-        paddingHorizontal: 16
+        paddingHorizontal: 16,
       })}
     >
       <View
@@ -522,11 +687,15 @@ function ColorChoiceRow({
           borderWidth: 1,
           height: 28,
           marginRight: 12,
-          width: 28
+          width: 28,
         }}
       />
-      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>{title}</Text>
-      {selected ? <Ionicons name="checkmark" color={theme.colors.primary} size={22} /> : null}
+      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>
+        {title}
+      </Text>
+      {selected ? (
+        <Ionicons name="checkmark" color={theme.colors.primary} size={22} />
+      ) : null}
     </Pressable>
   );
 }
@@ -535,7 +704,7 @@ function SettingsActionRow({
   destructive,
   onPress,
   title,
-  value
+  value,
 }: {
   destructive?: boolean;
   onPress: () => void;
@@ -553,23 +722,60 @@ function SettingsActionRow({
         backgroundColor: pressed ? theme.colors.surfaceSoft : theme.colors.surface,
         flexDirection: "row",
         minHeight: 46,
-        paddingHorizontal: 16
+        paddingHorizontal: 16,
       })}
     >
       <Text style={{ color: titleColor, flex: 1, fontSize: 17 }}>{title}</Text>
-      <Text style={{ color: theme.colors.muted, fontSize: 17, marginRight: 8 }}>{value}</Text>
-      {value ? <Ionicons name="chevron-forward" size={17} color={theme.colors.muted} /> : null}
+      <Text style={{ color: theme.colors.muted, fontSize: 17, marginRight: 8 }}>
+        {value}
+      </Text>
+      {value ? (
+        <Ionicons name="chevron-forward" size={17} color={theme.colors.muted} />
+      ) : null}
     </Pressable>
   );
 }
 
-function SwitchRow({ onValueChange, title, value }: { onValueChange: (value: boolean) => void; title: string; value: boolean }) {
+function SwitchRow({
+  onValueChange,
+  title,
+  value,
+}: {
+  onValueChange: (value: boolean) => void;
+  title: string;
+  value: boolean;
+}) {
   const theme = useTheme();
 
   return (
-    <View style={{ alignItems: "center", flexDirection: "row", minHeight: 46, paddingHorizontal: 16 }}>
-      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>{title}</Text>
-      <Switch value={value} onValueChange={onValueChange} />
+    <View
+      style={{
+        alignItems: "center",
+        flexDirection: "row",
+        minHeight: 46,
+        paddingHorizontal: 16,
+      }}
+    >
+      <Text
+        style={{
+          color: theme.colors.text,
+          flex: 1,
+          fontSize: 17,
+        }}
+      >
+        {title}
+      </Text>
+      <View
+        style={{
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Switch
+          value={value}
+          onValueChange={onValueChange}
+        />
+      </View>
     </View>
   );
 }
@@ -578,9 +784,28 @@ function InfoRow({ title, value }: { title: string; value: string }) {
   const theme = useTheme();
 
   return (
-    <View style={{ flexDirection: "row", gap: 10, minHeight: 46, paddingHorizontal: 16, paddingVertical: 10 }}>
-      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>{title}</Text>
-      <Text style={{ color: theme.colors.muted, flex: 1.2, fontSize: 17, textAlign: "right" }}>{value}</Text>
+    <View
+      style={{
+        flexDirection: "row",
+        gap: 10,
+        minHeight: 46,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+      }}
+    >
+      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17 }}>
+        {title}
+      </Text>
+      <Text
+        style={{
+          color: theme.colors.muted,
+          flex: 1.2,
+          fontSize: 17,
+          textAlign: "right",
+        }}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -589,7 +814,14 @@ function FooterText({ children }: { children: string }) {
   const theme = useTheme();
 
   return (
-    <Text style={{ color: theme.colors.muted, fontSize: 13, lineHeight: 18, paddingHorizontal: 16 }}>
+    <Text
+      style={{
+        color: theme.colors.muted,
+        fontSize: 13,
+        lineHeight: 18,
+        paddingHorizontal: 16,
+      }}
+    >
       {children}
     </Text>
   );
@@ -602,7 +834,11 @@ function themeModeLabel(mode: ThemeMode) {
 }
 
 function themeColorLabel(color: ThemeColorKey) {
-  return themeColorPresets.find((preset) => preset.key === normalizeThemeColor(color))?.label ?? "薄荷绿";
+  return (
+    themeColorPresets.find(
+      (preset) => preset.key === normalizeThemeColor(color),
+    )?.label ?? "薄荷绿"
+  );
 }
 
 function reminderTimingLabel(timing: ReminderTiming) {

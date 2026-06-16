@@ -1,8 +1,14 @@
 import { Appearance } from "react-native";
 import { useSyncExternalStore } from "react";
 
-export type ThemeMode = "system" | "light" | "dark";
-export type ThemeColorKey = "mint" | "blue" | "purple" | "orange" | "rose";
+export type ThemeMode = "unspecified" | "light" | "dark";
+export type ThemeColorKey =
+  | "mint"
+  | "blue"
+  | "purple"
+  | "orange"
+  | "rose"
+  | "red";
 type ThemeScheme = "light" | "dark";
 
 type ThemeColorPreset = {
@@ -24,33 +30,87 @@ export const themeColorPresets: ThemeColorPreset[] = [
   {
     key: "mint",
     label: "薄荷绿",
-    light: { primary: "#14A38B", primaryDark: "#087766", surfaceSoft: "#EEF6F4" },
-    dark: { primary: "#4AD6BF", primaryDark: "#82E8D8", surfaceSoft: "#15251F" }
+    light: {
+      primary: "#14A38B",
+      primaryDark: "#087766",
+      surfaceSoft: "#EEF6F4",
+    },
+    dark: {
+      primary: "#4AD6BF",
+      primaryDark: "#82E8D8",
+      surfaceSoft: "#15251F",
+    },
   },
   {
     key: "blue",
     label: "湖蓝",
-    light: { primary: "#2563EB", primaryDark: "#1D4ED8", surfaceSoft: "#EEF4FF" },
-    dark: { primary: "#60A5FA", primaryDark: "#93C5FD", surfaceSoft: "#172236" }
+    light: {
+      primary: "#2563EB",
+      primaryDark: "#1D4ED8",
+      surfaceSoft: "#EEF4FF",
+    },
+    dark: {
+      primary: "#60A5FA",
+      primaryDark: "#93C5FD",
+      surfaceSoft: "#172236",
+    },
   },
   {
     key: "purple",
     label: "紫罗兰",
-    light: { primary: "#7C3AED", primaryDark: "#5B21B6", surfaceSoft: "#F3EEFF" },
-    dark: { primary: "#A78BFA", primaryDark: "#C4B5FD", surfaceSoft: "#241B33" }
+    light: {
+      primary: "#7C3AED",
+      primaryDark: "#5B21B6",
+      surfaceSoft: "#F3EEFF",
+    },
+    dark: {
+      primary: "#A78BFA",
+      primaryDark: "#C4B5FD",
+      surfaceSoft: "#241B33",
+    },
   },
   {
     key: "orange",
     label: "暖橙",
-    light: { primary: "#EA7A1A", primaryDark: "#B45309", surfaceSoft: "#FFF3E6" },
-    dark: { primary: "#FDBA74", primaryDark: "#FED7AA", surfaceSoft: "#2D2118" }
+    light: {
+      primary: "#EA7A1A",
+      primaryDark: "#B45309",
+      surfaceSoft: "#FFF3E6",
+    },
+    dark: {
+      primary: "#FDBA74",
+      primaryDark: "#FED7AA",
+      surfaceSoft: "#2D2118",
+    },
   },
   {
     key: "rose",
     label: "玫瑰",
-    light: { primary: "#E11D48", primaryDark: "#BE123C", surfaceSoft: "#FFF1F3" },
-    dark: { primary: "#FB7185", primaryDark: "#FDA4AF", surfaceSoft: "#301B23" }
-  }
+    light: {
+      primary: "#E11D48",
+      primaryDark: "#BE123C",
+      surfaceSoft: "#FFF1F3",
+    },
+    dark: {
+      primary: "#FB7185",
+      primaryDark: "#FDA4AF",
+      surfaceSoft: "#301B23",
+    },
+  },
+  {
+    key: "red",
+    label: "日历红",
+    light: {
+      primary: "#FF3B30",
+      primaryDark: "#D70015",
+      surfaceSoft: "#FFF1F0",
+    },
+    dark: {
+      primary: "#FF453A",
+      primaryDark: "#FF6961",
+      surfaceSoft: "#321B1A",
+    },
+  },
 ];
 
 const lightColors = {
@@ -66,7 +126,7 @@ const lightColors = {
   danger: "#E05263",
   success: "#2BAE66",
   warning: "#F39B22",
-  purple: "#7C6FF6"
+  purple: "#7C6FF6",
 };
 
 const darkColors = {
@@ -82,16 +142,16 @@ const darkColors = {
   danger: "#FF7A8A",
   success: "#5ED18F",
   warning: "#F8B95B",
-  purple: "#A9A0FF"
+  purple: "#A9A0FF",
 };
 
 const radius = {
   sm: 10,
   md: 16,
-  lg: 22
+  lg: 22,
 };
 
-let currentMode: ThemeMode = "system";
+let currentMode: ThemeMode = "unspecified";
 let currentThemeColor: ThemeColorKey = "mint";
 const listeners = new Set<() => void>();
 
@@ -100,12 +160,19 @@ function emitThemeChange() {
 }
 
 export function normalizeThemeColor(value: string): ThemeColorKey {
-  return themeColorPresets.some((preset) => preset.key === value) ? (value as ThemeColorKey) : "mint";
+  return themeColorPresets.some((preset) => preset.key === value)
+    ? (value as ThemeColorKey)
+    : "mint";
+}
+
+export function normalizeThemeMode(value: string): ThemeMode {
+  if (value === "light" || value === "dark") return value;
+  return "unspecified";
 }
 
 export function setThemeMode(mode: ThemeMode) {
   currentMode = mode;
-  Appearance.setColorScheme((mode === "system" ? null : mode) as any);
+  Appearance.setColorScheme(mode);
   emitThemeChange();
 }
 
@@ -151,10 +218,16 @@ export function useThemeColor() {
 export function useTheme() {
   const mode = useThemeMode();
   const themeColor = useThemeColor();
-  const systemScheme = useSyncExternalStore(subscribeSystemColorScheme, getSystemColorScheme, getSystemColorScheme);
-  const resolvedScheme = mode === "system" ? systemScheme : mode;
+  const systemScheme = useSyncExternalStore(
+    subscribeSystemColorScheme,
+    getSystemColorScheme,
+    getSystemColorScheme,
+  );
+  const resolvedScheme = mode === "unspecified" ? systemScheme : mode;
   const baseColors = resolvedScheme === "dark" ? darkColors : lightColors;
-  const preset = themeColorPresets.find((item) => item.key === themeColor) ?? themeColorPresets[0];
+  const preset =
+    themeColorPresets.find((item) => item.key === themeColor) ??
+    themeColorPresets[0];
 
   return {
     mode,
@@ -162,8 +235,8 @@ export function useTheme() {
     themeColor,
     colors: {
       ...baseColors,
-      ...(resolvedScheme === "dark" ? preset.dark : preset.light)
+      ...(resolvedScheme === "dark" ? preset.dark : preset.light),
     },
-    radius
+    radius,
   };
 }

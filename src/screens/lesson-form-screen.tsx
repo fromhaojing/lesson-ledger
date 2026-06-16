@@ -5,12 +5,22 @@ import { Host, Picker } from "@expo/ui";
 import { useRouter } from "expo-router";
 
 import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
-import { Field, NumberWheelField, PrimaryButton, normalizeNumberWheelValue } from "@/components/ui";
+import {
+  Field,
+  NumberWheelField,
+  PrimaryButton,
+  normalizeNumberWheelValue,
+} from "@/components/ui";
 import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import { syncPendingLessonBadge } from "@/modules/notifications/badge.service";
 import { syncLessonNotifications } from "@/modules/notifications/notification.service";
 import { getSetting } from "@/modules/settings/settings.repository";
-import { combineLessonDateTimeRange, dateTextFromDate, timeTextFromDate, todayText } from "@/utils/date";
+import {
+  combineLessonDateTimeRange,
+  dateTextFromDate,
+  timeTextFromDate,
+  todayText,
+} from "@/utils/date";
 import { parseAmount } from "@/utils/money";
 import { useTheme } from "@/theme";
 
@@ -31,7 +41,9 @@ export function LessonFormScreen() {
   const selectedEnd = pickerDate(dateText, endTime);
 
   useEffect(() => {
-    getSetting("default_amount", "150").then(setAmount).catch(() => setAmount("150"));
+    getSetting("default_amount", "150")
+      .then(setAmount)
+      .catch(() => setAmount("150"));
   }, []);
 
   async function save() {
@@ -42,7 +54,11 @@ export function LessonFormScreen() {
         .filter(Boolean);
       if (studentNames.length === 0) throw new Error("请填写学生姓名");
       const fallbackAmount = await getSetting("default_amount", "150");
-      const { startAt, endAt } = combineLessonDateTimeRange(dateText, startTime, endTime);
+      const { startAt, endAt } = combineLessonDateTimeRange(
+        dateText,
+        startTime,
+        endTime,
+      );
 
       await lessonRepository.create({
         title: studentNames.join("、"),
@@ -52,20 +68,27 @@ export function LessonFormScreen() {
         endAt,
         grade: grade || null,
         courseType: courseType || null,
-        defaultAmount: parseAmount(normalizeNumberWheelValue(amount || fallbackAmount)),
-        note: note || null
+        defaultAmount: parseAmount(
+          normalizeNumberWheelValue(amount || fallbackAmount),
+        ),
+        note: note || null,
       });
       await syncLessonNotifications({ askPermission: true });
       await syncPendingLessonBadge();
       router.back();
     } catch (error) {
-      Alert.alert("保存失败", error instanceof Error ? error.message : "请检查课程信息。");
+      Alert.alert(
+        "保存失败",
+        error instanceof Error ? error.message : "请检查课程信息。",
+      );
     }
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <SafeAreaScrollView contentContainerStyle={{ gap: 10, paddingHorizontal: 20 }}>
+      <SafeAreaScrollView
+        contentContainerStyle={{ gap: 10, paddingHorizontal: 20 }}
+      >
         <PickerField
           label="日期"
           mode="date"
@@ -87,20 +110,58 @@ export function LessonFormScreen() {
           value={selectedEnd}
           onChange={(date) => setEndTime(timeTextFromDate(date))}
         />
-        <Field label="学生（合班可用 / 分隔）" value={students} onChangeText={setStudents} placeholder="张三/李四" />
-        <SelectField label="年级" value={grade} placeholder="选择年级" options={gradeOptions} onChange={setGrade} />
-        <Field label="课程类型" value={courseType} onChangeText={setCourseType} placeholder="一对一" />
-        <NumberWheelField label="默认金额" value={amount} onChangeText={setAmount} suffix="元" placeholder="选择金额" />
-        <Field label="备注" value={note} onChangeText={setNote} placeholder="可选" />
+        <Field
+          label="学生（合班可用 / 分隔）"
+          value={students}
+          onChangeText={setStudents}
+          placeholder="张三/李四"
+        />
+        <SelectField
+          label="年级"
+          value={grade}
+          placeholder="选择年级"
+          options={gradeOptions}
+          onChange={setGrade}
+        />
+        <Field
+          label="课程类型"
+          value={courseType}
+          onChangeText={setCourseType}
+          placeholder="一对一"
+        />
+        <NumberWheelField
+          label="默认金额"
+          value={amount}
+          onChangeText={setAmount}
+          suffix="元"
+          placeholder="选择金额"
+        />
+        <Field
+          label="备注"
+          value={note}
+          onChangeText={setNote}
+          placeholder="可选"
+        />
         <PrimaryButton onPress={save}>保存课程</PrimaryButton>
       </SafeAreaScrollView>
     </View>
   );
 }
 
-const gradeOptions = ["一年级", "二年级", "三年级", "四年级", "五年级", "六年级", "初一", "初二", "初三", "高一", "高二", "高三"].map(
-  (grade) => ({ label: grade, value: grade })
-);
+const gradeOptions = [
+  "一年级",
+  "二年级",
+  "三年级",
+  "四年级",
+  "五年级",
+  "六年级",
+  "初一",
+  "初二",
+  "初三",
+  "高一",
+  "高二",
+  "高三",
+].map((grade) => ({ label: grade, value: grade }));
 
 type SelectOption = {
   label: string;
@@ -112,7 +173,7 @@ function SelectField({
   onChange,
   options,
   placeholder,
-  value
+  value,
 }: {
   label: string;
   onChange: (value: string) => void;
@@ -122,15 +183,22 @@ function SelectField({
 }) {
   const theme = useTheme();
   const [visible, setVisible] = useState(false);
-  const selectedValue = options.find((item) => item.label === value)?.value ?? options.find((item) => item.value === value)?.value ?? "";
+  const selectedValue =
+    options.find((item) => item.label === value)?.value ??
+    options.find((item) => item.value === value)?.value ??
+    "";
   const selectedIndex = Math.max(
     0,
-    options.findIndex((item) => item.value === selectedValue)
+    options.findIndex((item) => item.value === selectedValue),
   );
 
   return (
     <View style={{ gap: 6 }}>
-      <Text style={{ color: theme.colors.muted, fontSize: 13, fontWeight: "500" }}>{label}</Text>
+      <Text
+        style={{ color: theme.colors.muted, fontSize: 13, fontWeight: "500" }}
+      >
+        {label}
+      </Text>
       <Pressable
         onPress={() => setVisible(true)}
         style={({ pressed }) => ({
@@ -143,10 +211,18 @@ function SelectField({
           flexDirection: "row",
           minHeight: 50,
           opacity: pressed ? 0.72 : 1,
-          paddingHorizontal: 14
+          paddingHorizontal: 14,
         })}
       >
-        <Text style={{ color: value ? theme.colors.text : "#A1AAB8", flex: 1, fontSize: 16 }}>{value || placeholder}</Text>
+        <Text
+          style={{
+            color: value ? theme.colors.text : "#A1AAB8",
+            flex: 1,
+            fontSize: 16,
+          }}
+        >
+          {value || placeholder}
+        </Text>
         <Text style={{ color: theme.colors.muted, fontSize: 18 }}>⌄</Text>
       </Pressable>
       {visible ? (
@@ -170,7 +246,7 @@ function SelectionSheet({
   onClose,
   onSelect,
   options,
-  title
+  title,
 }: {
   initialIndex: number;
   onClose: () => void;
@@ -179,11 +255,20 @@ function SelectionSheet({
   title: string;
 }) {
   const theme = useTheme();
-  const [draftValue, setDraftValue] = useState(options[initialIndex]?.value ?? options[0]?.value ?? "");
+  const [draftValue, setDraftValue] = useState(
+    options[initialIndex]?.value ?? options[0]?.value ?? "",
+  );
 
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible>
-      <Pressable onPress={onClose} style={{ backgroundColor: "rgba(0, 0, 0, 0.24)", flex: 1, justifyContent: "flex-end" }}>
+      <Pressable
+        onPress={onClose}
+        style={{
+          backgroundColor: "rgba(0, 0, 0, 0.24)",
+          flex: 1,
+          justifyContent: "flex-end",
+        }}
+      >
         <Pressable
           style={{
             backgroundColor: theme.colors.surface,
@@ -191,23 +276,68 @@ function SelectionSheet({
             borderTopRightRadius: 24,
             maxHeight: "62%",
             paddingBottom: 24,
-            paddingTop: 8
+            paddingTop: 8,
           }}
         >
           <View style={{ alignItems: "center", paddingBottom: 8 }}>
-            <View style={{ backgroundColor: theme.colors.line, borderRadius: 999, height: 4, width: 42 }} />
+            <View
+              style={{
+                backgroundColor: theme.colors.line,
+                borderRadius: 999,
+                height: 4,
+                width: 42,
+              }}
+            />
           </View>
-          <View style={{ alignItems: "center", flexDirection: "row", minHeight: 44, paddingHorizontal: 18 }}>
-            <Text style={{ color: theme.colors.text, flex: 1, fontSize: 17, fontWeight: "600" }}>{title}</Text>
+          <View
+            style={{
+              alignItems: "center",
+              flexDirection: "row",
+              minHeight: 44,
+              paddingHorizontal: 18,
+            }}
+          >
+            <Text
+              style={{
+                color: theme.colors.text,
+                flex: 1,
+                fontSize: 17,
+                fontWeight: "600",
+              }}
+            >
+              {title}
+            </Text>
             <Pressable onPress={() => onSelect(draftValue)} hitSlop={10}>
-              <Text style={{ color: theme.colors.primary, fontSize: 15, fontWeight: "600" }}>完成</Text>
+              <Text
+                style={{
+                  color: theme.colors.primary,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              >
+                完成
+              </Text>
             </Pressable>
           </View>
-          <View style={{ height: 220, justifyContent: "center", paddingHorizontal: 18 }}>
+          <View
+            style={{
+              height: 220,
+              justifyContent: "center",
+              paddingHorizontal: 18,
+            }}
+          >
             <Host colorScheme={theme.scheme} style={{ flex: 1 }}>
-              <Picker appearance="wheel" selectedValue={draftValue} onValueChange={setDraftValue}>
+              <Picker
+                appearance="wheel"
+                selectedValue={draftValue}
+                onValueChange={setDraftValue}
+              >
                 {options.map((item) => (
-                  <Picker.Item key={item.value} label={item.label} value={item.value} />
+                  <Picker.Item
+                    key={item.value}
+                    label={item.label}
+                    value={item.value}
+                  />
                 ))}
               </Picker>
             </Host>
@@ -222,7 +352,7 @@ function PickerField({
   label,
   mode,
   onChange,
-  value
+  value,
 }: {
   label: string;
   mode: "date" | "time";
@@ -242,11 +372,21 @@ function PickerField({
         flexDirection: "row",
         minHeight: 50,
         paddingLeft: 14,
-        paddingRight: 8
+        paddingRight: 8,
       }}
     >
-      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 16, fontWeight: "500" }}>{label}</Text>
+      <Text
+        style={{
+          color: theme.colors.text,
+          flex: 1,
+          fontSize: 16,
+          fontWeight: "500",
+        }}
+      >
+        {label}
+      </Text>
       <DateTimePicker
+        accentColor={theme.colors.primary}
         display="compact"
         locale="zh-Hans"
         minuteInterval={5}
@@ -254,6 +394,8 @@ function PickerField({
         onChange={(_, date) => {
           if (date) onChange(date);
         }}
+        textColor={theme.colors.text}
+        themeVariant={theme.scheme}
         value={value}
       />
     </View>
@@ -272,7 +414,7 @@ function getInitialSchedule() {
   return {
     dateText: todayText(),
     startTime: timeTextFromDate(start),
-    endTime: timeTextFromDate(end)
+    endTime: timeTextFromDate(end),
   };
 }
 

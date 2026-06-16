@@ -4,14 +4,19 @@ import { runMigrations } from "@/db/migrations";
 import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import { syncPendingLessonBadge } from "@/modules/notifications/badge.service";
 import { syncLessonNotifications } from "@/modules/notifications/notification.service";
-import { getSetting } from "@/modules/settings/settings.repository";
-import { normalizeThemeColor, setThemeColor, setThemeMode, type ThemeMode } from "@/theme";
+import { getSetting, setSetting } from "@/modules/settings/settings.repository";
+import { normalizeThemeColor, normalizeThemeMode, setThemeColor, setThemeMode } from "@/theme";
 
 let foregroundHooked = false;
 
 export async function bootstrapApp() {
   await runMigrations();
-  setThemeMode((await getSetting("theme_mode", "system")) as ThemeMode);
+  const storedThemeMode = await getSetting("theme_mode", "unspecified");
+  const themeMode = normalizeThemeMode(storedThemeMode);
+  setThemeMode(themeMode);
+  if (storedThemeMode !== themeMode) {
+    await setSetting("theme_mode", themeMode);
+  }
   setThemeColor(normalizeThemeColor(await getSetting("theme_color", "mint")));
   await lessonRepository.refreshPendingStatuses();
   await syncLessonNotifications({ askPermission: true });

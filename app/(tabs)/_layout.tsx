@@ -39,26 +39,41 @@ export default function TabLayout() {
   }, [loadPendingCount]);
 
   return (
-    <NativeTabs tintColor={theme.colors.primary} minimizeBehavior="onScrollDown">
+    <NativeTabs
+      tintColor={theme.colors.primary}
+      minimizeBehavior="onScrollDown"
+    >
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} md="home" />
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "house", selected: "house.fill" }}
+          md="home"
+        />
         <NativeTabs.Trigger.Label>首页</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="calendar">
-        <NativeTabs.Trigger.Icon sf={{ default: "calendar", selected: "calendar" }} md="calendar_month" />
-        <NativeTabs.Trigger.Label>日历</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="pending">
-        <NativeTabs.Trigger.Icon sf={{ default: "tray", selected: "tray.fill" }} md="pending_actions" />
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "tray", selected: "tray.fill" }}
+          md="pending_actions"
+        />
         <NativeTabs.Trigger.Label>待确认</NativeTabs.Trigger.Label>
-        {pendingCount > 0 ? <NativeTabs.Trigger.Badge>{String(pendingCount)}</NativeTabs.Trigger.Badge> : null}
+        {pendingCount > 0 ? (
+          <NativeTabs.Trigger.Badge>
+            {String(pendingCount)}
+          </NativeTabs.Trigger.Badge>
+        ) : null}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="statistics">
-        <NativeTabs.Trigger.Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} md="bar_chart" />
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "chart.bar", selected: "chart.bar.fill" }}
+          md="bar_chart"
+        />
         <NativeTabs.Trigger.Label>统计</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
-        <NativeTabs.Trigger.Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} md="settings" />
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "gearshape", selected: "gearshape.fill" }}
+          md="settings"
+        />
         <NativeTabs.Trigger.Label>设置</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>

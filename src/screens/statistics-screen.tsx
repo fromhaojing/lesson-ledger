@@ -12,7 +12,10 @@ import { useFocusEffect } from "expo-router";
 
 import { EmptyState } from "@/components/empty-state";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
-import { getRangeStatistics, type Statistics } from "@/modules/statistics/statistics.service";
+import {
+  getRangeStatistics,
+  type Statistics,
+} from "@/modules/statistics/statistics.service";
 import { useTheme } from "@/theme";
 import { monthRange } from "@/utils/date";
 import { formatMoney } from "@/utils/money";
@@ -37,10 +40,13 @@ export function StatisticsScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
-  const studentChartRows = useMemo(() => stats?.byStudent.slice(0, 10) ?? [], [stats?.byStudent]);
+  const studentChartRows = useMemo(
+    () => stats?.byStudent.slice(0, 10) ?? [],
+    [stats?.byStudent],
+  );
   const studentChartHeight = Math.max(330, studentChartRows.length * 48 + 104);
 
   const studentOption = useMemo(
@@ -50,14 +56,22 @@ export function StatisticsScreen() {
         barColor: theme.colors.purple,
         data: studentChartRows,
         lineColor: theme.colors.line,
-        textColor: theme.colors.text
+        textColor: theme.colors.text,
       }),
-    [studentChartRows, theme.colors.line, theme.colors.muted, theme.colors.purple, theme.colors.text]
+    [
+      studentChartRows,
+      theme.colors.line,
+      theme.colors.muted,
+      theme.colors.purple,
+      theme.colors.text,
+    ],
   );
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <SafeAreaScrollView contentContainerStyle={{ gap: 14, paddingHorizontal: 20 }}>
+      <SafeAreaScrollView
+        contentContainerStyle={{ gap: 14, paddingHorizontal: 20 }}
+      >
         <View
           style={{
             backgroundColor: theme.colors.surface,
@@ -65,7 +79,7 @@ export function StatisticsScreen() {
             borderCurve: "continuous",
             borderRadius: theme.radius.lg,
             borderWidth: 1,
-            padding: 14
+            padding: 14,
           }}
         >
           <DateRangePicker
@@ -102,7 +116,7 @@ export function StatisticsScreen() {
           rows={(stats?.byStudent ?? []).map((item) => ({
             name: item.name,
             detail: "参与课程",
-            value: `${item.count} 节`
+            value: `${item.count} 节`,
           }))}
         />
       </SafeAreaScrollView>
@@ -116,7 +130,7 @@ function OverviewPanel({
   cancelledCount,
   confirmedCount,
   dateRange,
-  pendingCount
+  pendingCount,
 }: {
   absentCount: number;
   amount: number;
@@ -130,30 +144,45 @@ function OverviewPanel({
   return (
     <View
       style={{
-        backgroundColor: theme.colors.surfaceSoft,
+        backgroundColor: theme.colors.surface,
         borderColor: theme.colors.line,
         borderCurve: "continuous",
         borderRadius: 24,
         borderWidth: 1,
         gap: 16,
-        padding: 18
+        padding: 18,
       }}
     >
       <View style={{ gap: 5 }}>
-        <Text selectable style={{ color: theme.colors.muted, fontSize: 13, fontWeight: "700" }}>
+        <Text
+          selectable
+          style={{ color: theme.colors.muted, fontSize: 13, fontWeight: "700" }}
+        >
           {dateRange}
         </Text>
-        <Text selectable adjustsFontSizeToFit numberOfLines={1} style={{ color: theme.colors.text, fontSize: 34, fontWeight: "800" }}>
+        <Text
+          selectable
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          style={{ color: theme.colors.text, fontSize: 34, fontWeight: "800" }}
+        >
           {formatMoney(amount)}
         </Text>
-        <Text selectable style={{ color: theme.colors.muted, fontSize: 13, fontWeight: "600" }}>
+        <Text
+          selectable
+          style={{ color: theme.colors.muted, fontSize: 13, fontWeight: "600" }}
+        >
           已确认收入
         </Text>
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         <StatTile label="确认课程" value={`${confirmedCount} 节`} />
         <StatTile label="待确认" value={`${pendingCount} 节`} tone="warning" />
-        <StatTile label="未完成" value={`${cancelledCount + absentCount} 节`} tone="muted" />
+        <StatTile
+          label="未完成"
+          value={`${cancelledCount + absentCount} 节`}
+          tone="muted"
+        />
       </View>
     </View>
   );
@@ -165,7 +194,7 @@ function ChartCard({
   height,
   option,
   title,
-  width
+  width,
 }: {
   empty: string;
   hasData: boolean;
@@ -178,7 +207,10 @@ function ChartCard({
 
   return (
     <View style={{ gap: 8 }}>
-      <Text selectable style={{ color: theme.colors.text, fontSize: 19, fontWeight: "600" }}>
+      <Text
+        selectable
+        style={{ color: theme.colors.text, fontSize: 19, fontWeight: "600" }}
+      >
         {title}
       </Text>
       <View
@@ -190,16 +222,35 @@ function ChartCard({
           borderWidth: 1,
           minHeight: height,
           overflow: "hidden",
-          paddingVertical: 10
+          paddingVertical: 10,
         }}
       >
-        {hasData ? <EChart option={option} themeName={theme.scheme} width={width - 2} height={height - 20} /> : <EmptyState title="暂无数据" description={empty} />}
+        {hasData ? (
+          <EChart
+            option={option}
+            themeName={theme.colors.surface}
+            width={width - 2}
+            height={height - 20}
+          />
+        ) : (
+          <EmptyState title="暂无数据" description={empty} />
+        )}
       </View>
     </View>
   );
 }
 
-function EChart({ height, option, themeName, width }: { height: number; option: EChartsCoreOption; themeName: string; width: number }) {
+function EChart({
+  height,
+  option,
+  themeName,
+  width,
+}: {
+  height: number;
+  option: EChartsCoreOption;
+  themeName: string;
+  width: number;
+}) {
   const chartRef = useRef<any>(null);
   const chartInstanceRef = useRef<ECharts | null>(null);
 
@@ -210,7 +261,7 @@ function EChart({ height, option, themeName, width }: { height: number; option: 
     const chart = echarts.init(chartRef.current, themeName, {
       height,
       renderer: "svg",
-      width
+      width,
     });
     chart.setOption(option, true);
     chartInstanceRef.current = chart;
@@ -227,7 +278,7 @@ function EChart({ height, option, themeName, width }: { height: number; option: 
 function DateRangePicker({
   endDate,
   onChange,
-  startDate
+  startDate,
 }: {
   endDate: string;
   onChange: (startDate: string, endDate: string) => void;
@@ -237,37 +288,67 @@ function DateRangePicker({
 
   function changeStartDate(nextDate: Date) {
     const nextDateText = dayjs(nextDate).format("YYYY-MM-DD");
-    onChange(nextDateText, dayjs(nextDateText).isAfter(endDate) ? nextDateText : endDate);
+    onChange(
+      nextDateText,
+      dayjs(nextDateText).isAfter(endDate) ? nextDateText : endDate,
+    );
   }
 
   function changeEndDate(nextDate: Date) {
     const nextDateText = dayjs(nextDate).format("YYYY-MM-DD");
-    onChange(dayjs(nextDateText).isBefore(startDate) ? nextDateText : startDate, nextDateText);
+    onChange(
+      dayjs(nextDateText).isBefore(startDate) ? nextDateText : startDate,
+      nextDateText,
+    );
   }
-
 
   return (
     <View style={{ gap: 12 }}>
-        <View style={{ flex: 1, gap: 3 }}>
-          <Text selectable style={{ color: theme.colors.text, fontSize: 17, fontWeight: "700" }}>
-            统计范围
-          </Text>
-        </View>
+      <View style={{ flex: 1, gap: 3 }}>
+        <Text
+          selectable
+          style={{ color: theme.colors.text, fontSize: 17, fontWeight: "700" }}
+        >
+          统计范围
+        </Text>
+      </View>
       <View
         style={{
           borderRadius: 18,
-          overflow: "hidden"
+          overflow: "hidden",
         }}
       >
-        <DatePickerField label="开始日期" value={dateFromText(startDate)} onChange={changeStartDate} />
-        <View style={{ backgroundColor: theme.colors.line, height: 1, marginLeft: 14 }} />
-        <DatePickerField label="结束日期" value={dateFromText(endDate)} onChange={changeEndDate} />
+        <DatePickerField
+          label="开始日期"
+          value={dateFromText(startDate)}
+          onChange={changeStartDate}
+        />
+        <View
+          style={{
+            backgroundColor: theme.colors.line,
+            height: 1,
+            marginLeft: 14,
+          }}
+        />
+        <DatePickerField
+          label="结束日期"
+          value={dateFromText(endDate)}
+          onChange={changeEndDate}
+        />
       </View>
     </View>
   );
 }
 
-function DatePickerField({ label, onChange, value }: { label: string; onChange: (date: Date) => void; value: Date }) {
+function DatePickerField({
+  label,
+  onChange,
+  value,
+}: {
+  label: string;
+  onChange: (date: Date) => void;
+  value: Date;
+}) {
   const theme = useTheme();
 
   return (
@@ -278,10 +359,19 @@ function DatePickerField({ label, onChange, value }: { label: string; onChange: 
         flexDirection: "row",
         minHeight: 50,
         paddingLeft: 14,
-        paddingRight: 8
+        paddingRight: 8,
       }}
     >
-      <Text style={{ color: theme.colors.text, flex: 1, fontSize: 16, fontWeight: "500" }}>{label}</Text>
+      <Text
+        style={{
+          color: theme.colors.text,
+          flex: 1,
+          fontSize: 16,
+          fontWeight: "500",
+        }}
+      >
+        {label}
+      </Text>
       <DateTimePicker
         display="compact"
         locale="zh-Hans"
@@ -298,7 +388,7 @@ function DatePickerField({ label, onChange, value }: { label: string; onChange: 
 function StatTile({
   label,
   tone = "primary",
-  value
+  value,
 }: {
   label: string;
   tone?: "primary" | "success" | "warning" | "muted";
@@ -306,7 +396,13 @@ function StatTile({
 }) {
   const theme = useTheme();
   const color =
-    tone === "warning" ? theme.colors.warning : tone === "muted" ? theme.colors.muted : tone === "success" ? theme.colors.success : theme.colors.primary;
+    tone === "warning"
+      ? theme.colors.warning
+      : tone === "muted"
+        ? theme.colors.muted
+        : tone === "success"
+          ? theme.colors.success
+          : theme.colors.primary;
 
   return (
     <View
@@ -321,25 +417,49 @@ function StatTile({
         minHeight: 72,
         minWidth: 128,
         justifyContent: "center",
-        padding: 12
+        padding: 12,
       }}
     >
-      <Text selectable style={{ color: theme.colors.muted, fontSize: 12, fontWeight: "700" }}>
+      <Text
+        selectable
+        style={{ color: theme.colors.muted, fontSize: 12, fontWeight: "700" }}
+      >
         {label}
       </Text>
-      <Text selectable adjustsFontSizeToFit numberOfLines={1} style={{ color, fontSize: 18, fontVariant: ["tabular-nums"], fontWeight: "800" }}>
+      <Text
+        selectable
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        style={{
+          color,
+          fontSize: 18,
+          fontVariant: ["tabular-nums"],
+          fontWeight: "800",
+        }}
+      >
         {value}
       </Text>
     </View>
   );
 }
 
-function StatsList({ title, rows, empty }: { title: string; rows: { name: string; detail: string; value: string }[]; empty: string }) {
+function StatsList({
+  title,
+  rows,
+  empty,
+}: {
+  title: string;
+  rows: { name: string; detail: string; value: string }[];
+  empty: string;
+}) {
   const theme = useTheme();
 
   return (
     <View style={{ gap: 8 }}>
-      <Text selectable style={{ color: theme.colors.text, fontSize: 19, fontWeight: "600" }}>
+      <Text
+        selectable
+        style={{ color: theme.colors.text, fontSize: 19, fontWeight: "600" }}
+      >
         {title}
       </Text>
       {rows.length === 0 ? (
@@ -352,7 +472,7 @@ function StatsList({ title, rows, empty }: { title: string; rows: { name: string
             borderCurve: "continuous",
             borderRadius: theme.radius.lg,
             borderWidth: 1,
-            overflow: "hidden"
+            overflow: "hidden",
           }}
         >
           {rows.map((row, index) => (
@@ -367,18 +487,35 @@ function StatsList({ title, rows, empty }: { title: string; rows: { name: string
                 gap: 12,
                 minHeight: 58,
                 paddingHorizontal: 14,
-                paddingVertical: 10
+                paddingVertical: 10,
               }}
             >
               <View style={{ flex: 1, gap: 3 }}>
-                <Text selectable style={{ color: theme.colors.text, fontSize: 16, fontWeight: "600" }}>
+                <Text
+                  selectable
+                  style={{
+                    color: theme.colors.text,
+                    fontSize: 16,
+                    fontWeight: "600",
+                  }}
+                >
                   {row.name}
                 </Text>
-                <Text selectable style={{ color: theme.colors.muted, fontSize: 13 }}>
+                <Text
+                  selectable
+                  style={{ color: theme.colors.muted, fontSize: 13 }}
+                >
                   {row.detail}
                 </Text>
               </View>
-              <Text selectable style={{ color: theme.colors.text, fontSize: 16, fontWeight: "600" }}>
+              <Text
+                selectable
+                style={{
+                  color: theme.colors.text,
+                  fontSize: 16,
+                  fontWeight: "600",
+                }}
+              >
                 {row.value}
               </Text>
             </View>
@@ -394,7 +531,7 @@ function buildStudentOption({
   barColor,
   data,
   lineColor,
-  textColor
+  textColor,
 }: {
   axisColor: string;
   barColor: string;
@@ -410,15 +547,21 @@ function buildStudentOption({
       minInterval: 1,
       axisLabel: { color: axisColor, fontSize: 12 },
       axisLine: { lineStyle: { color: lineColor } },
-      splitLine: { lineStyle: { color: lineColor, type: "dashed" } }
+      splitLine: { lineStyle: { color: lineColor, type: "dashed" } },
     },
     yAxis: {
       type: "category",
       data: data.map((item) => item.name),
       inverse: true,
-      axisLabel: { color: textColor, fontSize: 13, fontWeight: 600, width: 82, overflow: "truncate" },
+      axisLabel: {
+        color: textColor,
+        fontSize: 13,
+        fontWeight: 600,
+        width: 82,
+        overflow: "truncate",
+      },
       axisLine: { lineStyle: { color: lineColor } },
-      axisTick: { show: false }
+      axisTick: { show: false },
     },
     series: [
       {
@@ -426,10 +569,17 @@ function buildStudentOption({
         barCategoryGap: "42%",
         barMaxWidth: 18,
         itemStyle: { borderRadius: [0, 9, 9, 0], color: barColor },
-        label: { show: true, position: "right", color: axisColor, fontSize: 12, distance: 10, formatter: "{c} 节" },
-        data: data.map((item) => item.count)
-      }
-    ]
+        label: {
+          show: true,
+          position: "right",
+          color: axisColor,
+          fontSize: 12,
+          distance: 10,
+          formatter: "{c} 节",
+        },
+        data: data.map((item) => item.count),
+      },
+    ],
   };
 }
 
@@ -437,7 +587,8 @@ function formatDateRange(startDate: string, endDate: string) {
   const start = dayjs(startDate);
   const end = dayjs(endDate);
   if (start.isSame(end, "day")) return start.format("YYYY 年 M 月 D 日");
-  if (start.isSame(end, "year")) return `${start.format("YYYY 年 M 月 D 日")} - ${end.format("M 月 D 日")}`;
+  if (start.isSame(end, "year"))
+    return `${start.format("YYYY 年 M 月 D 日")} - ${end.format("M 月 D 日")}`;
   return `${start.format("YYYY 年 M 月 D 日")} - ${end.format("YYYY 年 M 月 D 日")}`;
 }
 
