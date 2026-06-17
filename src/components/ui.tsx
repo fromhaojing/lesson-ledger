@@ -5,10 +5,19 @@ import {
   Text,
   TextInput,
   View,
-  type PressableProps,
   type TextInputProps,
 } from "react-native";
 import { Host, Picker } from "@expo/ui";
+import {
+  Button as NativeButton,
+  Host as NativeHost,
+} from "@expo/ui/swift-ui";
+import {
+  buttonStyle,
+  controlSize,
+  disabled as disabledModifier,
+  tint,
+} from "@expo/ui/swift-ui/modifiers";
 
 import { useTheme } from "@/theme";
 import type { LessonStatus } from "@/modules/lessons/lesson.types";
@@ -40,13 +49,12 @@ export function Card({
             ? "#22313D"
             : theme.colors.text
           : tone === "mint"
-            ? "#FFFFFF"
+            ? theme.colors.surfaceSoft
             : theme.colors.surface,
         borderColor: isDark ? "transparent" : theme.colors.line,
         borderCurve: "continuous",
         borderRadius: theme.radius.lg,
         borderWidth: 1,
-        boxShadow: "0 8px 18px rgba(20, 33, 61, 0.045)",
         gap: 10,
         padding: 14,
       }}
@@ -58,42 +66,50 @@ export function Card({
 
 export function PrimaryButton({
   children,
+  disabled = false,
+  onPress,
   variant = "primary",
-  ...props
-}: PropsWithChildren<
-  PressableProps & { variant?: "primary" | "quiet" | "danger" }
->) {
+}: PropsWithChildren<{
+  disabled?: boolean;
+  onPress?: () => void;
+  variant?: "primary" | "quiet" | "danger";
+}>) {
   const theme = useTheme();
-  const backgroundColor =
-    variant === "primary"
-      ? theme.colors.primary
-      : variant === "danger"
-        ? theme.colors.danger
-        : "#FFFFFF";
-  const color = variant === "quiet" ? theme.colors.primaryDark : "#FFFFFF";
+  const label = buttonLabel(children);
+  const tintColor =
+    variant === "danger"
+      ? theme.colors.danger
+      : variant === "quiet"
+        ? theme.colors.primaryDark
+        : theme.colors.primary;
 
   return (
-    <Pressable
-      {...props}
-      style={({ pressed }) => [
-        {
-          alignItems: "center",
-          backgroundColor,
-          borderCurve: "continuous",
-          borderRadius: 16,
-          minHeight: 50,
-          justifyContent: "center",
-          opacity: pressed ? 0.76 : props.disabled ? 0.46 : 1,
-          paddingHorizontal: 18,
-        },
-        typeof props.style === "function"
-          ? props.style({ pressed, hovered: false })
-          : props.style,
-      ]}
-    >
-      <Text style={{ color, fontSize: 16, fontWeight: "600" }}>{children}</Text>
-    </Pressable>
+    <NativeHost matchContents>
+      <NativeButton
+        label={label}
+        modifiers={[
+          buttonStyle(variant === "primary" ? "borderedProminent" : "bordered"),
+          controlSize("large"),
+          tint(tintColor),
+          disabledModifier(disabled),
+        ]}
+        onPress={disabled ? undefined : onPress}
+        role={variant === "danger" ? "destructive" : "default"}
+      />
+    </NativeHost>
   );
+}
+
+function buttonLabel(children: PropsWithChildren["children"]) {
+  if (typeof children === "string" || typeof children === "number") {
+    return String(children);
+  }
+  if (Array.isArray(children)) {
+    return children
+      .filter((child) => typeof child === "string" || typeof child === "number")
+      .join("");
+  }
+  return "";
 }
 
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
@@ -328,7 +344,6 @@ export function StatusPill({ status }: { status: LessonStatus | "active" }) {
     pending: ["待确认", theme.colors.warning],
     confirmed: ["已确认", theme.colors.success],
     cancelled: ["已取消", theme.colors.danger],
-    absent: ["缺勤", theme.colors.purple],
   }[status] ?? ["未知", theme.colors.muted];
 
   return (

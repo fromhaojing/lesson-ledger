@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
-import { Card, Field, NumberWheelField, PrimaryButton, normalizeNumberWheelValue } from "@/components/ui";
 import { clearImportDraft, getImportDraft, loadImportDraft, type ImportDraft } from "@/modules/imports/import-draft.store";
 import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import type { CreateLessonInput } from "@/modules/lessons/lesson.types";
@@ -12,6 +10,8 @@ import { syncLessonNotifications } from "@/modules/notifications/notification.se
 import { useTheme } from "@/theme";
 import { combineLessonDateTimeRange, parseDateText, parseTimeText } from "@/utils/date";
 import { parseAmount } from "@/utils/money";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
+import { Card, Field, NumberWheelField, PrimaryButton, normalizeNumberWheelValue } from "@/components/ui";
 
 type EditableImportRow = {
   dateText: string;

@@ -1,8 +1,8 @@
 import { Link } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 
-import { Card, StatusPill } from "@/components/ui";
 import type { Lesson } from "@/modules/lessons/lesson.types";
+import { Card, StatusPill } from "@/components/ui";
 import { useTheme } from "@/theme";
 import { formatTimeRange } from "@/utils/date";
 import { formatMoney } from "@/utils/money";

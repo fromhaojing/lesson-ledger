@@ -94,7 +94,6 @@ export function StatisticsScreen() {
 
         <OverviewPanel
           amount={stats?.confirmedAmount ?? 0}
-          absentCount={stats?.absentCount ?? 0}
           cancelledCount={stats?.cancelledCount ?? 0}
           confirmedCount={stats?.confirmedCount ?? 0}
           dateRange={formatDateRange(startDate, endDate)}
@@ -125,14 +124,12 @@ export function StatisticsScreen() {
 }
 
 function OverviewPanel({
-  absentCount,
   amount,
   cancelledCount,
   confirmedCount,
   dateRange,
   pendingCount,
 }: {
-  absentCount: number;
   amount: number;
   cancelledCount: number;
   confirmedCount: number;
@@ -179,8 +176,8 @@ function OverviewPanel({
         <StatTile label="确认课程" value={`${confirmedCount} 节`} />
         <StatTile label="待确认" value={`${pendingCount} 节`} tone="warning" />
         <StatTile
-          label="未完成"
-          value={`${cancelledCount + absentCount} 节`}
+          label="已取消"
+          value={`${cancelledCount} 节`}
           tone="muted"
         />
       </View>

@@ -1,10 +1,12 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { Alert, Text, View } from "react-native";
+import { Button as NativeButton, Host as NativeHost } from "@expo/ui/swift-ui";
+import { buttonStyle, controlSize, tint } from "@expo/ui/swift-ui/modifiers";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
-import { Card, PrimaryButton, StatusPill } from "@/components/ui";
+import { StatusPill } from "@/components/ui";
 import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import type { Lesson, LessonStatus } from "@/modules/lessons/lesson.types";
 import { syncPendingLessonBadge } from "@/modules/notifications/badge.service";
@@ -46,73 +48,94 @@ export function LessonDetailScreen() {
     ]);
   }
 
-  async function markAbsent() {
+  function openConfirmScreen() {
     if (!lesson) return;
-    Alert.alert("标记缺勤", "标记后这节课会进入未完成统计，金额会记为 0。", [
-      { text: "取消", style: "cancel" },
-      {
-        text: "标记缺勤",
-        style: "destructive",
-        onPress: async () => {
-          await lessonRepository.markAbsent(lesson.id, 0);
-          await syncLessonNotifications();
-          await syncPendingLessonBadge();
-          await load();
-        }
-      }
-    ]);
+    router.push(`/lessons/${lesson.id}/confirm`);
   }
 
   if (!lesson) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-        <SafeAreaView edges={["bottom"]} style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-          <PrimaryButton variant="quiet" onPress={() => router.back()}>返回</PrimaryButton>
-        </SafeAreaView>
-      </View>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }} />
     );
   }
 
-  const canAct = !["confirmed", "cancelled", "absent"].includes(lesson.status);
+  const canAct = !["confirmed", "cancelled"].includes(lesson.status);
+  const canConfirm = lesson.status === "pending";
   const displayStatus = getDisplayStatus(lesson);
+  const courseInfo =
+    [lesson.grade, lesson.courseType].filter(Boolean).join(" · ") ||
+    "普通课程";
+  const amount = formatMoney(lesson.finalAmount ?? lesson.defaultAmount);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <SafeAreaScrollView contentContainerStyle={{ gap: 12, paddingHorizontal: 20 }}>
-        <Card tone="mint">
-          <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between", gap: 10 }}>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text selectable style={{ color: theme.colors.text, fontSize: 22, fontWeight: "600" }}>{lesson.title}</Text>
-              <Text selectable style={{ color: theme.colors.muted, fontSize: 15 }}>
-                {lesson.dateText}  {formatTimeRange(lesson.startAt, lesson.endAt)}
-              </Text>
-            </View>
+      <SafeAreaScrollView
+        bottomOffset={canAct ? 132 : 32}
+        contentContainerStyle={{ gap: 24, paddingHorizontal: 36 }}
+      >
+        <View style={{ gap: 12, paddingTop: 8 }}>
+          <Text selectable style={{ color: theme.colors.text, fontSize: 24, fontWeight: "800" }}>
+            {lesson.title}
+          </Text>
+          <Text selectable style={{ color: theme.colors.text, fontSize: 16, fontWeight: "500", lineHeight: 23 }}>
+            {lesson.dateText}  {formatTimeRange(lesson.startAt, lesson.endAt)}
+          </Text>
+          <View style={{ alignSelf: "flex-start" }}>
             <StatusPill status={displayStatus} />
           </View>
-        </Card>
+        </View>
 
-        <Card>
-          <Detail label="学生" value={lesson.studentNames.join("、")} />
-          <Detail label="年级" value={lesson.grade || "未填写"} />
-          <Detail label="课程类型" value={lesson.courseType || "未分类"} />
-          <Detail label="默认金额" value={formatMoney(lesson.defaultAmount)} />
-          <Detail label="实际金额" value={lesson.finalAmount === null ? "未确认" : formatMoney(lesson.finalAmount)} />
-          <Detail label="备注" value={lesson.note || "无"} />
-        </Card>
-
-        {canAct ? (
-          <View style={{ gap: 10 }}>
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <PrimaryButton variant="quiet" onPress={markAbsent} style={{ flex: 1 }}>
-                标记缺勤
-              </PrimaryButton>
-              <PrimaryButton variant="danger" onPress={markCancelled} style={{ flex: 1 }}>
-                取消课程
-              </PrimaryButton>
-            </View>
-          </View>
-        ) : null}
+        <InfoGroup>
+          <Detail label="课程" value={courseInfo} />
+          <Detail label="金额" value={amount} />
+          <Detail label="备注" value={lesson.note || "无"} muted={!lesson.note} />
+        </InfoGroup>
       </SafeAreaScrollView>
+
+      {canAct ? (
+        <SafeAreaView
+          edges={["bottom"]}
+          pointerEvents="box-none"
+          style={{
+            alignItems: "center",
+            bottom: 0,
+            left: 0,
+            paddingBottom: 18,
+            paddingHorizontal: 20,
+            paddingTop: 20,
+            position: "absolute",
+            right: 0,
+          }}
+        >
+          <View style={{ borderRadius: 999, flexDirection: "row", gap: 10 }}>
+            <NativeHost matchContents>
+              <NativeButton
+                label="取消课程"
+                modifiers={[
+                  buttonStyle("glass"),
+                  controlSize("large"),
+                  tint(theme.colors.danger),
+                ]}
+                onPress={markCancelled}
+                role="destructive"
+              />
+            </NativeHost>
+            {canConfirm ? (
+              <NativeHost matchContents>
+                <NativeButton
+                  label="确认金额"
+                  modifiers={[
+                    buttonStyle("glass"),
+                    controlSize("large"),
+                    tint(theme.colors.primary),
+                  ]}
+                  onPress={openConfirmScreen}
+                />
+              </NativeHost>
+            ) : null}
+          </View>
+        </SafeAreaView>
+      ) : null}
     </View>
   );
 }
@@ -125,13 +148,50 @@ function getDisplayStatus(lesson: Lesson): LessonStatus | "active" {
   return lesson.status;
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function InfoGroup({ children }: { children: ReactNode }) {
   const theme = useTheme();
 
   return (
-    <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-      <Text style={{ color: theme.colors.muted, fontSize: 14, fontWeight: "500" }}>{label}</Text>
-      <Text selectable style={{ color: theme.colors.text, flex: 1, fontSize: 15, fontWeight: "500", textAlign: "right" }}>
+    <View
+      style={{
+        backgroundColor: theme.colors.surface,
+        borderCurve: "continuous",
+        borderRadius: 30,
+        gap: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 24,
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
+function Detail({
+  label,
+  muted = false,
+  value,
+}: {
+  label: string;
+  muted?: boolean;
+  value: string;
+}) {
+  const theme = useTheme();
+
+  return (
+    <View style={{ alignItems: "center", flexDirection: "row", gap: 16 }}>
+      <Text style={{ color: theme.colors.muted, fontSize: 15, fontWeight: "600", width: 48 }}>{label}</Text>
+      <Text
+        selectable
+        style={{
+          color: muted ? theme.colors.muted : theme.colors.text,
+          flex: 1,
+          fontSize: 16,
+          fontWeight: "600",
+          lineHeight: 22,
+          textAlign: "right",
+        }}
+      >
         {value}
       </Text>
     </View>

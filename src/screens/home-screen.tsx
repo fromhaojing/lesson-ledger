@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, RefreshControl, Text, View } from "react-native";
-import { Link, useFocusEffect } from "expo-router";
+import { RefreshControl, Text, View } from "react-native";
+import { useFocusEffect } from "expo-router";
 
 import { EmptyState } from "@/components/empty-state";
 import { LessonListItem } from "@/components/lesson-list-item";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
-import { Card } from "@/components/ui";
 import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import type { Lesson } from "@/modules/lessons/lesson.types";
-import { getMonthStatistics } from "@/modules/statistics/statistics.service";
 import { useTheme } from "@/theme";
-import { monthKey, todayText } from "@/utils/date";
+import { todayText } from "@/utils/date";
 import { formatMoney } from "@/utils/money";
 
 export function HomeScreen() {
@@ -18,15 +16,11 @@ export function HomeScreen() {
   const [todayLessons, setTodayLessons] = useState<Lesson[]>([]);
   const [confirmedToday, setConfirmedToday] = useState(0);
   const [expectedToday, setExpectedToday] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     await lessonRepository.refreshPendingStatuses();
-    const [lessons, stats] = await Promise.all([
-      lessonRepository.findByDate(todayText()),
-      getMonthStatistics(monthKey()),
-    ]);
+    const lessons = await lessonRepository.findByDate(todayText());
     setTodayLessons(lessons.filter((lesson) => lesson.status !== "confirmed"));
     setConfirmedToday(
       lessons
@@ -38,7 +32,6 @@ export function HomeScreen() {
         .filter((lesson) => ["scheduled", "pending"].includes(lesson.status))
         .reduce((total, lesson) => total + (lesson.defaultAmount ?? 0), 0),
     );
-    setPendingCount(stats.pendingCount);
   }, []);
 
   useFocusEffect(
@@ -96,49 +89,6 @@ export function HomeScreen() {
             <HomeAmount label="已确认" value={formatMoney(confirmedToday)} />
           </View>
         </View>
-
-        {pendingCount > 0 ? (
-          <Link href="/pending" asChild>
-            <Pressable>
-              <Card tone="dark">
-                <View
-                  style={{
-                    alignItems: "center",
-                    flexDirection: "row",
-                    gap: 12,
-                  }}
-                >
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Text
-                      style={{
-                        color: "#FFFFFF",
-                        fontSize: 18,
-                        fontWeight: "700",
-                      }}
-                    >
-                      还有 {pendingCount} 节待确认
-                    </Text>
-                    <Text
-                      selectable
-                      style={{ color: "#D7DEE8", fontSize: 14, lineHeight: 20 }}
-                    >
-                      处理完后，今日与统计数据会自动更新。
-                    </Text>
-                  </View>
-                  <Text
-                    style={{
-                      color: "#FFFFFF",
-                      fontSize: 24,
-                      fontWeight: "300",
-                    }}
-                  >
-                    ›
-                  </Text>
-                </View>
-              </Card>
-            </Pressable>
-          </Link>
-        ) : null}
 
         <View style={{ gap: 8 }}>
           <Text

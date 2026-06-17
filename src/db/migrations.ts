@@ -79,6 +79,21 @@ const migrations: Migration[] = [
       await db.execAsync(initialSchema);
       await seedDefaultSettings(db);
     }
+  },
+  {
+    version: 2,
+    async up(db) {
+      const now = new Date().toISOString();
+      await db.runAsync(
+        `UPDATE lesson
+         SET status = 'cancelled',
+             final_amount = 0,
+             cancelled_at = COALESCE(cancelled_at, updated_at, created_at, ?),
+             updated_at = ?
+         WHERE status = 'absent'`,
+        [now, now]
+      );
+    }
   }
 ];
 

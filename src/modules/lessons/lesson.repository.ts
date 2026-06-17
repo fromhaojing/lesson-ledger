@@ -246,18 +246,6 @@ export const lessonRepository = {
     assertUpdated(result.changes, "当前课程状态无法取消");
   },
 
-  async markAbsent(id: string, amount: number) {
-    const db = await getDatabase();
-    const now = new Date().toISOString();
-    const result = await db.runAsync(
-      `UPDATE lesson
-       SET status = 'absent', final_amount = ?, updated_at = ?
-       WHERE id = ? AND deleted_at IS NULL AND status IN ('scheduled', 'pending')`,
-      [amount, now, id]
-    );
-    assertUpdated(result.changes, "当前课程状态无法标记缺勤");
-  },
-
   async updateNotificationId(id: string, notificationId: string | null, scheduledAt?: string | null) {
     const db = await getDatabase();
     await db.runAsync(

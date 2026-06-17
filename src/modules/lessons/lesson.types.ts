@@ -1,4 +1,4 @@
-export type LessonStatus = "scheduled" | "pending" | "confirmed" | "cancelled" | "absent";
+export type LessonStatus = "scheduled" | "pending" | "confirmed" | "cancelled";
 
 export type Lesson = {
   id: string;

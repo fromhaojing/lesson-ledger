@@ -1,0 +1,282 @@
+import dayjs from "dayjs";
+import { useMemo, type RefObject } from "react";
+import {
+  FlatList,
+  Pressable,
+  Text,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type ViewToken,
+} from "react-native";
+
+import type { Lesson } from "@/modules/lessons/lesson.types";
+import {
+  buildAgendaItemLayouts,
+  getLessonStatusMeta,
+  getListItemLayout,
+  listViewabilityConfig,
+  type AgendaSection,
+  type CalendarPalette,
+} from "@/components/calendar/calendar-utils";
+
+export function AgendaView({
+  bottomInset,
+  contentWidth,
+  currentToday,
+  listRef,
+  onEndReached,
+  onOpenLesson,
+  onScroll,
+  onSelectDate,
+  onViewableItemsChanged,
+  palette,
+  sections,
+  selectedDate,
+}: {
+  bottomInset: number;
+  contentWidth: number;
+  currentToday: string;
+  listRef: RefObject<FlatList<AgendaSection> | null>;
+  onEndReached: () => void;
+  onOpenLesson: (lesson: Lesson) => void;
+  onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onSelectDate: (dateText: string) => void;
+  onViewableItemsChanged: (info: {
+    viewableItems: ViewToken<AgendaSection>[];
+  }) => void;
+  palette: CalendarPalette;
+  sections: AgendaSection[];
+  selectedDate: string;
+}) {
+  const initialScrollIndex = Math.max(
+    0,
+    sections.findIndex((section) => section.dateText === selectedDate),
+  );
+  const itemLayouts = useMemo(
+    () => buildAgendaItemLayouts(sections),
+    [sections],
+  );
+
+  return (
+    <FlatList
+      ref={listRef}
+      contentInsetAdjustmentBehavior="never"
+      contentContainerStyle={{
+        paddingBottom: bottomInset + 18,
+        paddingTop: 8,
+      }}
+      data={sections}
+      extraData={currentToday}
+      getItemLayout={(_, index) => getListItemLayout(itemLayouts, index)}
+      initialNumToRender={10}
+      initialScrollIndex={sections.length > 0 ? initialScrollIndex : undefined}
+      keyExtractor={(item) => item.dateText}
+      ListEmptyComponent={<AgendaEmptyState palette={palette} />}
+      maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+      onEndReached={onEndReached}
+      onEndReachedThreshold={1.2}
+      onScroll={onScroll}
+      onViewableItemsChanged={onViewableItemsChanged}
+      renderItem={({ item }) => (
+        <AgendaDaySection
+          contentWidth={contentWidth}
+          currentToday={currentToday}
+          onOpenLesson={onOpenLesson}
+          onSelectDate={onSelectDate}
+          palette={palette}
+          section={item}
+        />
+      )}
+      scrollEventThrottle={16}
+      showsVerticalScrollIndicator={false}
+      viewabilityConfig={listViewabilityConfig}
+      windowSize={9}
+    />
+  );
+}
+
+function AgendaDaySection({
+  contentWidth,
+  currentToday,
+  onOpenLesson,
+  onSelectDate,
+  palette,
+  section,
+}: {
+  contentWidth: number;
+  currentToday: string;
+  onOpenLesson: (lesson: Lesson) => void;
+  onSelectDate: (dateText: string) => void;
+  palette: CalendarPalette;
+  section: AgendaSection;
+}) {
+  return (
+    <View
+      style={{
+        paddingLeft: 18,
+        paddingRight: 18,
+        paddingTop: 8,
+        width: contentWidth,
+      }}
+    >
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => onSelectDate(section.dateText)}
+        style={({ pressed }) => ({
+          alignItems: "center",
+          borderBottomColor: palette.separator,
+          borderBottomWidth: 0.5,
+          flexDirection: "row",
+          minHeight: 38,
+          opacity: pressed ? 0.6 : 1,
+        })}
+      >
+        <Text
+          style={{
+            color:
+              section.dateText === currentToday ? palette.red : palette.text,
+            flex: 1,
+            fontSize: 18,
+            fontWeight: "700",
+          }}
+        >
+          {section.title}
+        </Text>
+        <Text style={{ color: palette.secondaryText, fontSize: 15 }}>
+          {section.subtitle}
+        </Text>
+      </Pressable>
+
+      {section.lessons.map((lesson) => (
+        <AgendaLessonRow
+          key={lesson.id}
+          lesson={lesson}
+          onPress={() => onOpenLesson(lesson)}
+          palette={palette}
+        />
+      ))}
+    </View>
+  );
+}
+
+function AgendaEmptyState({ palette }: { palette: CalendarPalette }) {
+  return (
+    <View
+      style={{
+        minHeight: 260,
+        justifyContent: "center",
+        paddingHorizontal: 24,
+      }}
+    >
+      <Text
+        style={{
+          color: palette.text,
+          fontSize: 18,
+          fontWeight: "700",
+          textAlign: "center",
+        }}
+      >
+        暂无课程
+      </Text>
+      <Text
+        style={{
+          color: palette.secondaryText,
+          fontSize: 14,
+          lineHeight: 21,
+          paddingTop: 8,
+          textAlign: "center",
+        }}
+      >
+        当前范围内没有课程安排。
+      </Text>
+    </View>
+  );
+}
+
+function AgendaLessonRow({
+  lesson,
+  onPress,
+  palette,
+}: {
+  lesson: Lesson;
+  onPress: () => void;
+  palette: CalendarPalette;
+}) {
+  const status = getLessonStatusMeta(lesson.status, palette);
+  const meta =
+    [lesson.grade, lesson.courseType].filter(Boolean).join(" · ") || "普通课程";
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => ({
+        alignItems: "center",
+        borderBottomColor: palette.separator,
+        borderBottomWidth: 0.5,
+        flexDirection: "row",
+        minHeight: 58,
+        opacity: pressed ? 0.58 : 1,
+        paddingVertical: 8,
+      })}
+    >
+      <View
+        style={{ alignItems: "center", justifyContent: "center", width: 22 }}
+      >
+        <View
+          style={{
+            backgroundColor: status.color,
+            borderRadius: 999,
+            height: 10,
+            width: 10,
+          }}
+        />
+      </View>
+      <View
+        style={{
+          backgroundColor: status.color,
+          borderRadius: 999,
+          height: 40,
+          marginRight: 9,
+          width: 3,
+        }}
+      />
+      <View style={{ flex: 1, gap: 3, paddingRight: 10 }}>
+        <Text
+          numberOfLines={1}
+          style={{ color: palette.text, fontSize: 16, fontWeight: "700" }}
+        >
+          {lesson.title}
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={{ color: palette.secondaryText, fontSize: 13 }}
+        >
+          {meta}
+        </Text>
+      </View>
+      <View style={{ alignItems: "flex-end", gap: 2 }}>
+        <Text
+          style={{
+            color: palette.text,
+            fontSize: 15,
+            fontVariant: ["tabular-nums"],
+            fontWeight: "500",
+          }}
+        >
+          {dayjs(lesson.startAt).format("HH:mm")}
+        </Text>
+        <Text
+          style={{
+            color: palette.secondaryText,
+            fontSize: 13,
+            fontVariant: ["tabular-nums"],
+          }}
+        >
+          {dayjs(lesson.endAt).format("HH:mm")}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}

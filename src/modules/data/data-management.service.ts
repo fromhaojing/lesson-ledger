@@ -168,7 +168,6 @@ function statusLabel(status: string) {
     scheduled: "未开始",
     pending: "待确认",
     confirmed: "已确认",
-    cancelled: "已取消",
-    absent: "缺勤"
+    cancelled: "已取消"
   }[status] ?? status;
 }

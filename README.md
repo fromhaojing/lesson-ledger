@@ -5,6 +5,7 @@
 ## 架构
 
 - `app/`: Expo Router 路由入口，页面实现委托给 `src/screens`。
+- `src/components/`: 通用 UI 组件和日历视图子组件。
 - `src/screens/`: 主要页面和交互流程。
 - `src/modules/lessons`: SQLite 课程读写、状态迁移和导入批次写入。
 - `src/modules/imports`: Excel 解析和导入草稿缓存。
@@ -18,12 +19,12 @@
 
 本地 SQLite 数据库名为 `lesson-ledger.db`，核心表包括：
 
-- `lesson`: 课程记录，状态包括 `scheduled`、`pending`、`confirmed`、`cancelled`、`absent`。
+- `lesson`: 课程记录，状态包括 `scheduled`、`pending`、`confirmed`、`cancelled`。
 - `import_batch`: 每次 Excel 导入的文件名、行数和成功/失败统计。
 - `app_setting`: 主题、默认金额、通知等设置。
 - `schema_migrations`: 已执行迁移版本。
 
-课程状态迁移集中在 repository 层保护，已确认、已取消或缺勤课程不会再次被确认、取消或标记缺勤。
+课程状态迁移集中在 repository 层保护，已确认或已取消课程不会再次被确认或取消。
 
 ## 导入与导出
 

@@ -7,7 +7,6 @@ export type Statistics = {
   confirmedCount: number;
   pendingCount: number;
   cancelledCount: number;
-  absentCount: number;
   byStudent: { name: string; count: number }[];
 };
 
@@ -43,7 +42,6 @@ function buildStatistics(lessons: Lesson[]): Statistics {
     confirmedCount: confirmed.length,
     pendingCount: pending.length,
     cancelledCount: lessons.filter((lesson) => lesson.status === "cancelled").length,
-    absentCount: lessons.filter((lesson) => lesson.status === "absent").length,
     byStudent: Array.from(studentMap.values()).sort((a, b) => b.count - a.count)
   };
 }
