@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.lishuo.lesson",
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "课时记会在课程快结束时提醒你确认本节课金额。"
-      }
+      },
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.lishuo.lesson",
@@ -36,12 +37,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/icon.png",
-          "imageWidth": 108,
-          "resizeMode": "contain",
+          "image": "./assets/images/splash-light.png",
+          "enableFullScreenImage_legacy": true,
+          "resizeMode": "cover",
           "backgroundColor": "#F7FAFC",
           "dark": {
-            "image": "./assets/images/icon-dark.png",
+            "image": "./assets/images/splash-dark.png",
             "backgroundColor": "#101419"
           }
         }

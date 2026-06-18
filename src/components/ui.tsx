@@ -72,10 +72,16 @@ export function PrimaryButton({
 }: PropsWithChildren<{
   disabled?: boolean;
   onPress?: () => void;
-  variant?: "primary" | "quiet" | "danger";
+  variant?: "primary" | "quiet" | "danger" | "glass";
 }>) {
   const theme = useTheme();
   const label = buttonLabel(children);
+  const style =
+    variant === "primary"
+      ? "borderedProminent"
+      : variant === "glass"
+        ? "glass"
+        : "bordered";
   const tintColor =
     variant === "danger"
       ? theme.colors.danger
@@ -88,7 +94,7 @@ export function PrimaryButton({
       <NativeButton
         label={label}
         modifiers={[
-          buttonStyle(variant === "primary" ? "borderedProminent" : "bordered"),
+          buttonStyle(style),
           controlSize("large"),
           tint(tintColor),
           disabledModifier(disabled),

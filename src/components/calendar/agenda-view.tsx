@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { useMemo, type RefObject } from "react";
+import { useLayoutEffect, useMemo, type RefObject } from "react";
 import {
   FlatList,
   Pressable,
@@ -21,6 +21,7 @@ import {
 } from "@/components/calendar/calendar-utils";
 
 export function AgendaView({
+  availableHeight,
   bottomInset,
   contentWidth,
   currentToday,
@@ -34,6 +35,7 @@ export function AgendaView({
   sections,
   selectedDate,
 }: {
+  availableHeight: number;
   bottomInset: number;
   contentWidth: number;
   currentToday: string;
@@ -49,27 +51,55 @@ export function AgendaView({
   sections: AgendaSection[];
   selectedDate: string;
 }) {
-  const initialScrollIndex = Math.max(
-    0,
-    sections.findIndex((section) => section.dateText === selectedDate),
+  const targetIndex = useMemo(
+    () => getAgendaTargetIndex(sections, selectedDate),
+    [sections, selectedDate],
   );
   const itemLayouts = useMemo(
     () => buildAgendaItemLayouts(sections),
     [sections],
   );
+  const initialScrollIndex = useMemo(
+    () =>
+      getCenteredInitialIndex({
+        availableHeight,
+        itemLayouts,
+        targetIndex,
+      }),
+    [availableHeight, itemLayouts, targetIndex],
+  );
+
+  useLayoutEffect(() => {
+    if (targetIndex < 0 || sections.length === 0) return;
+
+    const scrollOptions = {
+      animated: false,
+      index: targetIndex,
+      viewPosition: 0.45,
+    };
+
+    listRef.current?.scrollToIndex(scrollOptions);
+    const frame = requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex(scrollOptions);
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [listRef, sections.length, targetIndex]);
 
   return (
     <FlatList
       ref={listRef}
       contentInsetAdjustmentBehavior="never"
       contentContainerStyle={{
+        backgroundColor: palette.background,
         paddingBottom: bottomInset + 18,
-        paddingTop: 8,
       }}
       data={sections}
       extraData={currentToday}
       getItemLayout={(_, index) => getListItemLayout(itemLayouts, index)}
-      initialNumToRender={10}
+      initialNumToRender={14}
       initialScrollIndex={sections.length > 0 ? initialScrollIndex : undefined}
       keyExtractor={(item) => item.dateText}
       ListEmptyComponent={<AgendaEmptyState palette={palette} />}
@@ -90,10 +120,50 @@ export function AgendaView({
       )}
       scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
+      style={{ backgroundColor: palette.background }}
       viewabilityConfig={listViewabilityConfig}
       windowSize={9}
     />
   );
+}
+
+function getAgendaTargetIndex(sections: AgendaSection[], selectedDate: string) {
+  if (sections.length === 0) return -1;
+
+  const nextIndex = sections.findIndex(
+    (section) => section.dateText >= selectedDate,
+  );
+  return nextIndex >= 0 ? nextIndex : sections.length - 1;
+}
+
+function getCenteredInitialIndex({
+  availableHeight,
+  itemLayouts,
+  targetIndex,
+}: {
+  availableHeight: number;
+  itemLayouts: ReturnType<typeof buildAgendaItemLayouts>;
+  targetIndex: number;
+}) {
+  if (targetIndex <= 0) return 0;
+
+  const selectedLayout = itemLayouts[targetIndex];
+  if (!selectedLayout || availableHeight <= 0) return targetIndex;
+
+  const targetTopOffset = Math.max(
+    0,
+    selectedLayout.offset - availableHeight * 0.42,
+  );
+  let initialIndex = targetIndex;
+
+  while (
+    initialIndex > 0 &&
+    itemLayouts[initialIndex].offset > targetTopOffset
+  ) {
+    initialIndex -= 1;
+  }
+
+  return initialIndex;
 }
 
 function AgendaDaySection({
@@ -114,9 +184,9 @@ function AgendaDaySection({
   return (
     <View
       style={{
+        backgroundColor: palette.background,
         paddingLeft: 18,
         paddingRight: 18,
-        paddingTop: 8,
         width: contentWidth,
       }}
     >

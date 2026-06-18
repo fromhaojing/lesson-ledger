@@ -25,6 +25,7 @@ import {
   type LessonGroup,
   type MonthCell,
 } from "@/components/calendar/calendar-utils";
+import { useTheme } from "@/theme";
 
 export function MonthView({
   availableHeight,
@@ -72,14 +73,18 @@ export function MonthView({
     () => buildMonthItemLayouts(months, cellHeight),
     [cellHeight, months],
   );
+  const theme = useTheme()
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ backgroundColor: theme.colors.surface, flex: 1 }}>
       <WeekHeader cellWidth={cellWidth} palette={palette} />
       <FlatList
         ref={listRef}
         contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={{ paddingBottom: bottomInset + 18 }}
+        contentContainerStyle={{
+          backgroundColor: palette.background,
+          paddingBottom: bottomInset + 18,
+        }}
         data={months}
         extraData={listExtraData}
         getItemLayout={(_, index) => getListItemLayout(itemLayouts, index)}
@@ -106,6 +111,7 @@ export function MonthView({
         )}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        style={{ backgroundColor: palette.background }}
         viewabilityConfig={listViewabilityConfig}
         windowSize={7}
       />
@@ -113,7 +119,7 @@ export function MonthView({
   );
 }
 
-function MonthSection({
+export function MonthSection({
   cellHeight,
   cellWidth,
   currentToday,
@@ -134,13 +140,11 @@ function MonthSection({
   palette: CalendarPalette;
   selectedDate: string;
 }) {
-  const cells = buildMonthCells(
-    month,
-    selectedDate,
-    currentToday,
-    lessonsByDate,
+  const cells = useMemo(
+    () => buildMonthCells(month, selectedDate, currentToday, lessonsByDate),
+    [currentToday, lessonsByDate, month, selectedDate],
   );
-  const rows = chunk(cells, 7);
+  const rows = useMemo(() => chunk(cells, 7), [cells]);
   const monthDate = dayjs(`${month}-01`);
   const title =
     monthDate.month() === 0
@@ -148,7 +152,12 @@ function MonthSection({
       : monthDate.format("M月");
 
   return (
-    <View style={{ height: getMonthSectionHeight(month, cellHeight) }}>
+    <View
+      style={{
+        backgroundColor: palette.background,
+        height: getMonthSectionHeight(month, cellHeight),
+      }}
+    >
       <Text
         selectable
         style={{
@@ -186,7 +195,7 @@ function MonthSection({
   );
 }
 
-function WeekHeader({
+export function WeekHeader({
   cellWidth,
   palette,
 }: {
@@ -196,6 +205,7 @@ function WeekHeader({
   return (
     <View
       style={{
+        backgroundColor: palette.background,
         borderBottomColor: palette.separator,
         borderBottomWidth: 0.5,
         flexDirection: "row",

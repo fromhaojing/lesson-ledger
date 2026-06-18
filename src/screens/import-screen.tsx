@@ -8,6 +8,7 @@ import { Card, PrimaryButton } from "@/components/ui";
 import { parseExcelFile } from "@/modules/imports/excel-parser";
 import { setImportDraft } from "@/modules/imports/import-draft.store";
 import { useTheme } from "@/theme";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export function ImportScreen() {
   const router = useRouter();
@@ -43,15 +44,32 @@ export function ImportScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <SafeAreaScrollView contentContainerStyle={{ gap: 12, paddingHorizontal: 20 }}>
-        <Card tone="mint">
+      <SafeAreaScrollView bottomOffset={128} contentContainerStyle={{ gap: 12, paddingHorizontal: 20 }}>
+        <Card>
           <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: "600" }}>标准字段</Text>
           <Text selectable style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 22 }}>
             日期、开始时间、结束时间、学生、年级、课程类型、默认金额、备注
           </Text>
-          <PrimaryButton disabled={busy} onPress={pickFile}>{busy ? "处理中..." : "选择 Excel 文件"}</PrimaryButton>
         </Card>
       </SafeAreaScrollView>
+      <SafeAreaView
+        edges={["bottom"]}
+        pointerEvents="box-none"
+        style={{
+          alignItems: "center",
+          bottom: 0,
+          left: 0,
+          paddingBottom: 18,
+          paddingHorizontal: 20,
+          paddingTop: 20,
+          position: "absolute",
+          right: 0,
+        }}
+      >
+        <PrimaryButton disabled={busy} onPress={pickFile} variant="glass">
+          {busy ? "处理中..." : "选择 Excel 文件"}
+        </PrimaryButton>
+      </SafeAreaView>
     </View>
   );
 }

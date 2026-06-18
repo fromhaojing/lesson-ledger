@@ -110,7 +110,7 @@ export function ImportPreviewScreen() {
           <Card>
             <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: "600" }}>没有待导入的课表</Text>
             <Text style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 22 }}>请先选择 Excel 文件并完成解析。</Text>
-            <PrimaryButton onPress={() => router.back()}>返回选择文件</PrimaryButton>
+            <PrimaryButton onPress={() => router.back()} variant="glass">返回选择文件</PrimaryButton>
           </Card>
         </SafeAreaScrollView>
       </View>
@@ -126,16 +126,22 @@ export function ImportPreviewScreen() {
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={{ gap: 12 }}>
-            <Card tone="mint">
-              <Text selectable style={{ color: theme.colors.text, fontSize: 18, fontWeight: "600" }}>
-                {filename}
-              </Text>
-              <Text selectable style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 22 }}>
-                {summaryText}
-              </Text>
-              <PrimaryButton disabled={!canImport} onPress={confirmImport}>
-                {busy ? "导入中..." : "确认导入"}
-              </PrimaryButton>
+            <Card>
+              <View style={{ alignItems: "center", flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text selectable style={{ color: theme.colors.text, fontSize: 18, fontWeight: "600" }}>
+                    {filename}
+                  </Text>
+                  <Text selectable style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 22 }}>
+                    {summaryText}
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end", justifyContent: "center" }}>
+                  <PrimaryButton disabled={!canImport} onPress={confirmImport} variant="glass">
+                    {busy ? "导入中..." : "确认导入"}
+                  </PrimaryButton>
+                </View>
+              </View>
             </Card>
 
             {failedRows.length > 0 ? (

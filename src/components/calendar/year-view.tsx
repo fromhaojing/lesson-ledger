@@ -67,7 +67,10 @@ export function YearView({
     <FlatList
       ref={listRef}
       contentInsetAdjustmentBehavior="never"
-      contentContainerStyle={{ paddingBottom: bottomInset + 18 }}
+      contentContainerStyle={{
+        backgroundColor: palette.background,
+        paddingBottom: bottomInset + 18,
+      }}
       data={years}
       extraData={listExtraData}
       getItemLayout={(_, index) => ({
@@ -100,6 +103,7 @@ export function YearView({
       )}
       scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
+      style={{ backgroundColor: palette.background }}
       viewabilityConfig={listViewabilityConfig}
       windowSize={5}
     />
@@ -131,15 +135,13 @@ function YearSection({
   sectionHeight: number;
   year: number;
 }) {
-  const months = buildYearMonths(
-    year,
-    selectedDate,
-    currentToday,
-    lessonsByDate,
+  const months = useMemo(
+    () => buildYearMonths(year, selectedDate, currentToday, lessonsByDate),
+    [currentToday, lessonsByDate, selectedDate, year],
   );
 
   return (
-    <View style={{ height: sectionHeight }}>
+    <View style={{ backgroundColor: palette.background, height: sectionHeight }}>
       <Text
         selectable
         style={{

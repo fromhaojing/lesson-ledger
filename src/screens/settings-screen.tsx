@@ -26,6 +26,9 @@ import {
   getLocalDataSize,
 } from "@/modules/data/data-management.service";
 import {
+  REMINDER_MINUTES_MAX,
+  REMINDER_MINUTES_MIN,
+  REMINDER_MINUTES_STEP,
   getNotificationsEnabled,
   requestNotificationPermission,
   setNotificationsEnabled,
@@ -33,6 +36,7 @@ import {
 } from "@/modules/notifications/notification.service";
 import { getSetting, setSetting } from "@/modules/settings/settings.repository";
 import {
+  defaultThemeColor,
   normalizeThemeColor,
   setThemeColor,
   setThemeMode,
@@ -51,6 +55,7 @@ import {
   PrimaryButton,
   normalizeNumberWheelValue,
 } from "@/components/ui";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type ReminderTiming = "before" | "after";
 
@@ -65,6 +70,15 @@ function normalizeDefaultAmount(value: string) {
   );
 }
 
+function normalizeReminderMinutes(value: string) {
+  return normalizeNumberWheelValue(
+    value,
+    REMINDER_MINUTES_MIN,
+    REMINDER_MINUTES_MAX,
+    REMINDER_MINUTES_STEP,
+  );
+}
+
 export function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -76,7 +90,9 @@ export function SettingsScreen() {
   const [notificationStatus, setNotificationStatus] = useState("已开启");
 
   const load = useCallback(async () => {
-    setRemind(await getSetting("remind_before_minutes", "5"));
+    setRemind(
+      normalizeReminderMinutes(await getSetting("remind_before_minutes", "5")),
+    );
     setRemindTiming(await getReminderTimingSetting());
     setDefaultAmount(
       normalizeDefaultAmount(await getSetting("default_amount", "150")),
@@ -115,10 +131,10 @@ export function SettingsScreen() {
         <SettingsRow
           icon="school-outline"
           iconBackground="#30B0A3"
-          title="课程默认值"
+          title="课程设置"
           value={`${normalizeDefaultAmount(defaultAmount)} 元 · ${reminderTimingLabel(
             remindTiming,
-          )} ${remind} 分钟`}
+          )} ${normalizeReminderMinutes(remind)} 分钟`}
           onPress={() => router.push("/settings/defaults")}
         />
         <SettingsRow
@@ -211,12 +227,15 @@ export function ThemeColorSettingsScreen() {
 }
 
 export function DefaultSettingsScreen() {
+  const theme = useTheme();
   const [remind, setRemind] = useState("5");
   const [remindTiming, setRemindTiming] = useState<ReminderTiming>("before");
   const [defaultAmount, setDefaultAmount] = useState("150");
 
   const load = useCallback(async () => {
-    setRemind(await getSetting("remind_before_minutes", "5"));
+    setRemind(
+      normalizeReminderMinutes(await getSetting("remind_before_minutes", "5")),
+    );
     setRemindTiming(await getReminderTimingSetting());
     setDefaultAmount(
       normalizeDefaultAmount(await getSetting("default_amount", "150")),
@@ -232,7 +251,7 @@ export function DefaultSettingsScreen() {
   async function save() {
     await setSetting(
       "remind_before_minutes",
-      normalizeNumberWheelValue(remind || "5", 1, 120),
+      normalizeReminderMinutes(remind || "5"),
     );
     await setSetting("remind_timing", remindTiming);
     await setSetting(
@@ -240,47 +259,71 @@ export function DefaultSettingsScreen() {
       normalizeDefaultAmount(defaultAmount || "150"),
     );
     await syncLessonNotifications();
-    Alert.alert("已保存", "课程默认值已经更新。");
+    Alert.alert("已保存", "课程设置已经更新。");
   }
 
   return (
-    <SettingsDetail>
-      <SettingsGroup title="新课程">
-        <View style={{ gap: 10, padding: 16 }}>
-          <NumberWheelField
-            label="默认课程金额"
-            min={DEFAULT_NUMBER_WHEEL_MIN}
-            max={DEFAULT_NUMBER_WHEEL_MAX}
-            step={DEFAULT_NUMBER_WHEEL_STEP}
-            suffix="元"
-            value={defaultAmount}
-            onChangeText={setDefaultAmount}
+    <View style={{ backgroundColor: theme.colors.background, flex: 1 }}>
+      <SafeAreaScrollView
+        bottomOffset={128}
+        contentContainerStyle={{ gap: 14, paddingHorizontal: 16 }}
+        style={{ backgroundColor: theme.colors.background, flex: 1 }}
+      >
+        <SettingsGroup title="新课程">
+          <View style={{ gap: 10, padding: 16 }}>
+            <NumberWheelField
+              label="课程金额"
+              min={DEFAULT_NUMBER_WHEEL_MIN}
+              max={DEFAULT_NUMBER_WHEEL_MAX}
+              step={DEFAULT_NUMBER_WHEEL_STEP}
+              suffix="元"
+              value={defaultAmount}
+              onChangeText={setDefaultAmount}
+            />
+            <NumberWheelField
+              label="提醒间隔"
+              min={REMINDER_MINUTES_MIN}
+              max={REMINDER_MINUTES_MAX}
+              step={REMINDER_MINUTES_STEP}
+              suffix="分钟"
+              value={remind}
+              onChangeText={setRemind}
+            />
+          </View>
+        </SettingsGroup>
+        <SettingsGroup title="提醒时间">
+          <ChoiceRow
+            title="课程结束前提醒"
+            selected={remindTiming === "before"}
+            onPress={() => setRemindTiming("before")}
           />
-          <NumberWheelField
-            label="提醒间隔"
-            min={1}
-            max={120}
-            step={1}
-            suffix="分钟"
-            value={remind}
-            onChangeText={setRemind}
+          <ChoiceRow
+            title="课程结束后提醒"
+            selected={remindTiming === "after"}
+            onPress={() => setRemindTiming("after")}
           />
-        </View>
-      </SettingsGroup>
-      <SettingsGroup title="提醒时间">
-        <ChoiceRow
-          title="课程结束前提醒"
-          selected={remindTiming === "before"}
-          onPress={() => setRemindTiming("before")}
-        />
-        <ChoiceRow
-          title="课程结束后提醒"
-          selected={remindTiming === "after"}
-          onPress={() => setRemindTiming("after")}
-        />
-      </SettingsGroup>
-      <PrimaryButton onPress={save}>保存</PrimaryButton>
-    </SettingsDetail>
+        </SettingsGroup>
+      </SafeAreaScrollView>
+
+      <SafeAreaView
+        edges={["bottom"]}
+        pointerEvents="box-none"
+        style={{
+          alignItems: "center",
+          bottom: 0,
+          left: 0,
+          paddingBottom: 18,
+          paddingHorizontal: 20,
+          paddingTop: 20,
+          position: "absolute",
+          right: 0,
+        }}
+      >
+        <PrimaryButton variant="glass" onPress={save}>
+          保存
+        </PrimaryButton>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -837,7 +880,10 @@ function themeColorLabel(color: ThemeColorKey) {
   return (
     themeColorPresets.find(
       (preset) => preset.key === normalizeThemeColor(color),
-    )?.label ?? "薄荷绿"
+    )?.label ??
+    themeColorPresets.find((preset) => preset.key === defaultThemeColor)
+      ?.label ??
+    "珊瑚红"
   );
 }
 

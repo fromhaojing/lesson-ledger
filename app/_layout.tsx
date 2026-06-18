@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { StatusBar } from "expo-status-bar";
 import { Stack, usePathname, useRouter } from "expo-router";
@@ -7,15 +7,27 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import Animated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 import { bootstrapApp } from "@/bootstrap";
 import { HeaderCreateMenu } from "@/components/header-create-menu";
 import { useTheme } from "@/theme";
 
-const splashLogos = {
-  dark: require("../assets/images/icon-dark.png"),
-  light: require("../assets/images/icon.png"),
+const splashImages = {
+  dark: require("../assets/images/splash-dark.png"),
+  light: require("../assets/images/splash-light.png"),
 };
+const SPLASH_PULSE_DURATION = 1400;
+const SPLASH_PULSE_SCALE = 0.052;
+const SPLASH_PULSE_OFFSET_Y = -14;
 
 SplashScreen.preventAutoHideAsync().catch((error) => {
   console.warn("Failed to keep splash screen visible", error);
@@ -38,6 +50,13 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
+  const splashPulse = useSharedValue(0);
+  const splashImageStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: 1 + splashPulse.value * SPLASH_PULSE_SCALE },
+      { translateY: splashPulse.value * SPLASH_PULSE_OFFSET_Y },
+    ],
+  }));
   const headerTitle = getHeaderTitle(pathname);
   const headerLeft = getHeaderLeft(pathname);
   const extra = getHeaderExtra(pathname);
@@ -88,6 +107,33 @@ export default function RootLayout() {
   }, [bootstrapAttempt]);
 
   useEffect(() => {
+    if (ready) {
+      cancelAnimation(splashPulse);
+      splashPulse.value = 0;
+      return;
+    }
+
+    splashPulse.value = withRepeat(
+      withSequence(
+        withTiming(1, {
+          duration: SPLASH_PULSE_DURATION,
+          easing: Easing.linear,
+        }),
+        withTiming(0, {
+          duration: SPLASH_PULSE_DURATION,
+          easing: Easing.linear,
+        }),
+      ),
+      -1,
+      false,
+    );
+
+    return () => {
+      cancelAnimation(splashPulse);
+    };
+  }, [ready, splashPulse]);
+
+  useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const url = response.notification.request.content.data?.url;
@@ -109,85 +155,94 @@ export default function RootLayout() {
             flex: 1,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: theme.colors.background,
+            backgroundColor: theme.scheme === "dark" ? "#101419" : "#F7FAFC",
+            overflow: "hidden",
           }}
         >
-          <View style={{ alignItems: "center", gap: 16 }}>
+          <Animated.Image
+            accessibilityIgnoresInvertColors
+            resizeMode="cover"
+            source={
+              theme.scheme === "dark" ? splashImages.dark : splashImages.light
+            }
+            style={[
+              {
+                bottom: 0,
+                left: 0,
+                position: "absolute",
+                right: 0,
+                top: 0,
+                height: "100%",
+                width: "100%",
+              },
+              splashImageStyle,
+            ]}
+          />
+          {bootstrapError ? (
             <View
               style={{
+                alignItems: "center",
+                backgroundColor:
+                  theme.scheme === "dark"
+                    ? "rgba(16, 20, 25, 0.86)"
+                    : "rgba(255, 255, 255, 0.86)",
                 borderCurve: "continuous",
-                borderRadius: 28,
-                height: 108,
-                overflow: "hidden",
-                width: 108,
+                borderRadius: 24,
+                gap: 12,
+                marginHorizontal: 24,
+                paddingHorizontal: 24,
+                paddingVertical: 22,
               }}
             >
-              <Image
-                accessibilityIgnoresInvertColors
-                accessibilityLabel="课时记 Logo"
-                source={
-                  theme.scheme === "dark" ? splashLogos.dark : splashLogos.light
-                }
-                style={{ height: "100%", width: "100%" }}
-                resizeMode="contain"
-              />
-            </View>
-            {bootstrapError ? (
-              <View
-                style={{ alignItems: "center", gap: 12, paddingHorizontal: 24 }}
+              <Text
+                selectable
+                style={{
+                  color: theme.colors.text,
+                  fontSize: 17,
+                  fontWeight: "600",
+                  textAlign: "center",
+                }}
+              >
+                初始化失败
+              </Text>
+              <Text
+                selectable
+                style={{
+                  color: theme.colors.muted,
+                  fontSize: 14,
+                  lineHeight: 20,
+                  textAlign: "center",
+                }}
+              >
+                {bootstrapError}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setReady(false);
+                  setBootstrapError(null);
+                  setBootstrapAttempt((value) => value + 1);
+                }}
+                style={({ pressed }) => ({
+                  backgroundColor: theme.colors.primary,
+                  borderCurve: "continuous",
+                  borderRadius: 14,
+                  opacity: pressed ? 0.72 : 1,
+                  paddingHorizontal: 18,
+                  paddingVertical: 12,
+                })}
               >
                 <Text
-                  selectable
                   style={{
-                    color: theme.colors.text,
-                    fontSize: 17,
+                    color: "#FFFFFF",
+                    fontSize: 15,
                     fontWeight: "600",
-                    textAlign: "center",
                   }}
                 >
-                  初始化失败
+                  重试
                 </Text>
-                <Text
-                  selectable
-                  style={{
-                    color: theme.colors.muted,
-                    fontSize: 14,
-                    lineHeight: 20,
-                    textAlign: "center",
-                  }}
-                >
-                  {bootstrapError}
-                </Text>
-                <Pressable
-                  onPress={() => {
-                    setReady(false);
-                    setBootstrapError(null);
-                    setBootstrapAttempt((value) => value + 1);
-                  }}
-                  style={({ pressed }) => ({
-                    backgroundColor: theme.colors.primary,
-                    borderCurve: "continuous",
-                    borderRadius: 14,
-                    opacity: pressed ? 0.72 : 1,
-                    paddingHorizontal: 18,
-                    paddingVertical: 12,
-                  })}
-                >
-                  <Text
-                    style={{
-                      color: "#FFFFFF",
-                      fontSize: 15,
-                      fontWeight: "600",
-                    }}
-                  >
-                    重试
-                  </Text>
-                </Pressable>
-              </View>
-            ) : (
-              <ActivityIndicator color={theme.colors.primary} />
-            )}
-          </View>
+              </Pressable>
+            </View>
+          ) : null}
           <StatusBar style={theme.scheme === "dark" ? "light" : "dark"} />
         </View>
       </SafeAreaProvider>
@@ -272,7 +327,7 @@ export default function RootLayout() {
             <Stack.Screen
               name="settings/defaults"
               options={{
-                title: "课程默认值",
+                title: "课程设置",
                 ...headerCommonOptions,
               }}
             />

@@ -5,7 +5,13 @@ import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import { syncPendingLessonBadge } from "@/modules/notifications/badge.service";
 import { syncLessonNotifications } from "@/modules/notifications/notification.service";
 import { getSetting, setSetting } from "@/modules/settings/settings.repository";
-import { normalizeThemeColor, normalizeThemeMode, setThemeColor, setThemeMode } from "@/theme";
+import {
+  defaultThemeColor,
+  normalizeThemeColor,
+  normalizeThemeMode,
+  setThemeColor,
+  setThemeMode,
+} from "@/theme";
 
 let foregroundHooked = false;
 
@@ -17,7 +23,9 @@ export async function bootstrapApp() {
   if (storedThemeMode !== themeMode) {
     await setSetting("theme_mode", themeMode);
   }
-  setThemeColor(normalizeThemeColor(await getSetting("theme_color", "mint")));
+  setThemeColor(
+    normalizeThemeColor(await getSetting("theme_color", defaultThemeColor)),
+  );
   await lessonRepository.refreshPendingStatuses();
   await syncLessonNotifications({ askPermission: true });
   await syncPendingLessonBadge();

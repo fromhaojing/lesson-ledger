@@ -26,6 +26,8 @@ type ThemeColorPreset = {
   };
 };
 
+export const defaultThemeColor: ThemeColorKey = "red";
+
 export const themeColorPresets: ThemeColorPreset[] = [
   {
     key: "mint",
@@ -99,7 +101,7 @@ export const themeColorPresets: ThemeColorPreset[] = [
   },
   {
     key: "red",
-    label: "日历红",
+    label: "珊瑚红",
     light: {
       primary: "#FF3B30",
       primaryDark: "#D70015",
@@ -152,7 +154,7 @@ const radius = {
 };
 
 let currentMode: ThemeMode = "unspecified";
-let currentThemeColor: ThemeColorKey = "mint";
+let currentThemeColor: ThemeColorKey = defaultThemeColor;
 const listeners = new Set<() => void>();
 
 function emitThemeChange() {
@@ -162,7 +164,7 @@ function emitThemeChange() {
 export function normalizeThemeColor(value: string): ThemeColorKey {
   return themeColorPresets.some((preset) => preset.key === value)
     ? (value as ThemeColorKey)
-    : "mint";
+    : defaultThemeColor;
 }
 
 export function normalizeThemeMode(value: string): ThemeMode {

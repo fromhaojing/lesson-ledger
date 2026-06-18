@@ -74,18 +74,21 @@ function TodayToolbarButton({
 }) {
   return (
     <>
-      {isVisible ? (
+      <View
+        pointerEvents={isVisible ? "auto" : "none"}
+        style={{ opacity: isVisible ? 1 : 0 }}
+      >
         <NativeToolbarButton
           label="今天"
           onPress={onPress}
           palette={palette}
         />
-      ) : null}
+      </View>
       <View
         pointerEvents="none"
         style={[
           {
-            width: isVisible ? toolbarButtonGap : 0,
+            width: toolbarButtonGap,
           },
           toolbarTransitionStyle,
         ]}
@@ -123,6 +126,6 @@ function NativeToolbarButton({
         onPress={onPress}
         systemImage={systemImage}
       />
-    </NativeHost>
+  </NativeHost>
   );
 }

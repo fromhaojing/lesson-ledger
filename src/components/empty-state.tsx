@@ -10,11 +10,8 @@ export function EmptyState({ title, description }: { title: string; description:
       style={{
         alignItems: "center",
         backgroundColor: theme.colors.surface,
-        borderColor: theme.colors.line,
-        borderRadius: 22,
-        borderWidth: 1,
         gap: 8,
-        padding: 24
+        padding: 24,
       }}
     >
       <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: "600" }}>{title}</Text>

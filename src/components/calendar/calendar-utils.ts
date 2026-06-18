@@ -2,6 +2,10 @@ import dayjs from "dayjs";
 
 import type { Lesson, LessonStatus } from "@/modules/lessons/lesson.types";
 import { monthKey } from "@/utils/date";
+import {
+  normalizeChineseLunarDateText,
+  normalizeChineseLunarDayText,
+} from "@/utils/lunar";
 
 export type CalendarMode = "year" | "month" | "agenda";
 
@@ -50,6 +54,7 @@ type ListItemLayout = {
 type CalendarTheme = {
   colors: {
     primary: string;
+    background: string;
   };
   scheme: "light" | "dark";
 };
@@ -78,7 +83,7 @@ export function createCalendarPalette(theme: CalendarTheme) {
   const isDark = theme.scheme === "dark";
 
   return {
-    background: isDark ? "#000000" : "#FFFFFF",
+    background: theme.colors.background,
     eventBackgrounds: {
       cancelled: isDark ? "rgba(142, 142, 147, 0.25)" : "#EFEFF4",
       confirmed: isDark ? "rgba(48, 209, 88, 0.24)" : "#DDF8E5",
@@ -223,10 +228,16 @@ export type AgendaSection = {
 export function buildAgendaSections(
   dates: string[],
   lessonsByDate: LessonGroup,
+  alwaysVisibleDateText?: string,
 ): AgendaSection[] {
-  return dates.reduce<AgendaSection[]>((sections, dateText) => {
-    const lessons = lessonsByDate[dateText];
-    if (!lessons?.length) return sections;
+  const sectionDates =
+    alwaysVisibleDateText && !dates.includes(alwaysVisibleDateText)
+      ? [...dates, alwaysVisibleDateText].sort()
+      : dates;
+
+  return sectionDates.reduce<AgendaSection[]>((sections, dateText) => {
+    const lessons = lessonsByDate[dateText] ?? [];
+    if (!lessons.length && dateText !== alwaysVisibleDateText) return sections;
 
     sections.push({
       dateText,
@@ -300,7 +311,7 @@ export function getListItemLayout(layouts: ListItemLayout[], index: number) {
 }
 
 export function getAgendaSectionHeight(section?: AgendaSection) {
-  return 8 + 38 + (section?.lessons.length ?? 1) * 58;
+  return 38 + (section?.lessons.length ?? 1) * 58;
 }
 
 export function buildInitialMonthRange(month: string): MonthRange {
@@ -369,20 +380,6 @@ export function monthKeyFromDateText(dateText: string) {
   return monthKey(new Date(`${dateText}T00:00:00`));
 }
 
-export function getAgendaReturnSelectedDate(
-  openedDate: string,
-  previousSelectedDate: string,
-  today: string,
-) {
-  if (previousSelectedDate !== openedDate) return previousSelectedDate;
-  if (today !== openedDate) return today;
-
-  const date = dayjs(openedDate);
-  return date.date() === 1
-    ? date.add(1, "day").format("YYYY-MM-DD")
-    : date.startOf("month").format("YYYY-MM-DD");
-}
-
 let chineseCalendarDayFormatter: Intl.DateTimeFormat | null | undefined;
 let chineseCalendarDateFormatter: Intl.DateTimeFormat | null | undefined;
 const chineseCalendarDayCache = new Map<string, string>();
@@ -396,7 +393,7 @@ export function formatChineseCalendarDay(dateText: string) {
     const formatter = getChineseCalendarDayFormatter();
     if (!formatter) return "";
     const date = new Date(`${dateText}T00:00:00`);
-    const text = formatter.format(date).replace("日", "");
+    const text = normalizeChineseLunarDayText(formatter.format(date));
     chineseCalendarDayCache.set(dateText, text);
     return text;
   } catch {
@@ -412,7 +409,7 @@ export function formatChineseCalendarDate(dateText: string) {
     const formatter = getChineseCalendarDateFormatter();
     if (!formatter) return "";
     const date = new Date(`${dateText}T00:00:00`);
-    const text = formatter.format(date);
+    const text = normalizeChineseLunarDateText(formatter.format(date));
     chineseCalendarDateCache.set(dateText, text);
     return text;
   } catch {

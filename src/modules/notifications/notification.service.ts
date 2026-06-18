@@ -4,9 +4,14 @@ import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import type { Lesson } from "@/modules/lessons/lesson.types";
 import { getNumberSetting, getSetting, setSetting } from "@/modules/settings/settings.repository";
 import { formatMoney } from "@/utils/money";
+import { normalizeNumberWheelValue } from "@/utils/number";
 
 type ScheduledLessonNotification = Awaited<ReturnType<typeof Notifications.getAllScheduledNotificationsAsync>>[number];
 type ReminderTiming = "before" | "after";
+
+export const REMINDER_MINUTES_MIN = 0;
+export const REMINDER_MINUTES_MAX = 30;
+export const REMINDER_MINUTES_STEP = 1;
 
 export async function requestNotificationPermission() {
   const current = await Notifications.getPermissionsAsync();
@@ -155,7 +160,14 @@ async function getReminderSettings(): Promise<{ minutes: number; timing: Reminde
     getSetting("remind_timing", "before")
   ]);
   return {
-    minutes,
+    minutes: Number(
+      normalizeNumberWheelValue(
+        String(minutes),
+        REMINDER_MINUTES_MIN,
+        REMINDER_MINUTES_MAX,
+        REMINDER_MINUTES_STEP,
+      ),
+    ),
     timing: value === "after" ? "after" : "before"
   };
 }
