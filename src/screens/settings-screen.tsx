@@ -107,62 +107,67 @@ export function SettingsScreen() {
   );
 
   return (
-    <SafeAreaScrollView
-      contentContainerStyle={{ paddingHorizontal: 16 }}
+    <View
+      collapsable={false}
       style={{ backgroundColor: theme.colors.background, flex: 1 }}
     >
-      <SettingsGroup>
-        <SettingsRow
-          icon="moon-outline"
-          iconBackground="#5856D6"
-          title="外观"
-          value={themeModeLabel(themeMode)}
-          onPress={() => router.push("/settings/appearance")}
-        />
-        <SettingsRow
-          icon="color-palette-outline"
-          iconBackground={theme.colors.primary}
-          title="主题色"
-          value={themeColorLabel(themeColor)}
-          onPress={() => router.push("/settings/theme-color")}
-        />
-      </SettingsGroup>
-      <SettingsGroup>
-        <SettingsRow
-          icon="school-outline"
-          iconBackground="#30B0A3"
-          title="课程设置"
-          value={`${normalizeDefaultAmount(defaultAmount)} 元 · ${reminderTimingLabel(
-            remindTiming,
-          )} ${normalizeReminderMinutes(remind)} 分钟`}
-          onPress={() => router.push("/settings/defaults")}
-        />
-        <SettingsRow
-          icon="notifications-outline"
-          iconBackground="#FF9F0A"
-          title="通知"
-          value={notificationStatus}
-          onPress={() => router.push("/settings/notifications")}
-        />
-      </SettingsGroup>
+      <SafeAreaScrollView
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        style={{ backgroundColor: theme.colors.background, flex: 1 }}
+      >
+        <SettingsGroup>
+          <SettingsRow
+            icon="moon-outline"
+            iconBackground="#5856D6"
+            title="外观"
+            value={themeModeLabel(themeMode)}
+            onPress={() => router.push("/settings/appearance")}
+          />
+          <SettingsRow
+            icon="color-palette-outline"
+            iconBackground={theme.colors.primary}
+            title="主题色"
+            value={themeColorLabel(themeColor)}
+            onPress={() => router.push("/settings/theme-color")}
+          />
+        </SettingsGroup>
+        <SettingsGroup>
+          <SettingsRow
+            icon="school-outline"
+            iconBackground="#30B0A3"
+            title="课程设置"
+            value={`${normalizeDefaultAmount(defaultAmount)} 元 · ${reminderTimingLabel(
+              remindTiming,
+            )} ${normalizeReminderMinutes(remind)} 分钟`}
+            onPress={() => router.push("/settings/defaults")}
+          />
+          <SettingsRow
+            icon="notifications-outline"
+            iconBackground="#FF9F0A"
+            title="通知"
+            value={notificationStatus}
+            onPress={() => router.push("/settings/notifications")}
+          />
+        </SettingsGroup>
 
-      <SettingsGroup>
-        <SettingsRow
-          icon="lock-closed-outline"
-          iconBackground="#34C759"
-          title="隐私与数据"
-          value="本机存储"
-          onPress={() => router.push("/settings/privacy")}
-        />
-        <SettingsRow
-          icon="information-circle-outline"
-          iconBackground="#007AFF"
-          title="关于"
-          value="课时记"
-          onPress={() => router.push("/settings/about")}
-        />
-      </SettingsGroup>
-    </SafeAreaScrollView>
+        <SettingsGroup>
+          <SettingsRow
+            icon="lock-closed-outline"
+            iconBackground="#34C759"
+            title="隐私与数据"
+            value="本机存储"
+            onPress={() => router.push("/settings/privacy")}
+          />
+          <SettingsRow
+            icon="information-circle-outline"
+            iconBackground="#007AFF"
+            title="关于"
+            value="课时记"
+            onPress={() => router.push("/settings/about")}
+          />
+        </SettingsGroup>
+      </SafeAreaScrollView>
+    </View>
   );
 }
 

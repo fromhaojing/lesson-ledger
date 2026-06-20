@@ -3,6 +3,7 @@ import { Alert, Modal, Pressable, Text, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Host, Picker } from "@expo/ui";
 import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
 import {
@@ -87,6 +88,7 @@ export function LessonFormScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <SafeAreaScrollView
+        bottomOffset={128}
         contentContainerStyle={{ gap: 10, paddingHorizontal: 20 }}
       >
         <PickerField
@@ -142,8 +144,26 @@ export function LessonFormScreen() {
           onChangeText={setNote}
           placeholder="可选"
         />
-        <PrimaryButton onPress={save}>保存课程</PrimaryButton>
       </SafeAreaScrollView>
+
+      <SafeAreaView
+        edges={["bottom"]}
+        pointerEvents="box-none"
+        style={{
+          alignItems: "center",
+          bottom: 0,
+          left: 0,
+          paddingBottom: 18,
+          paddingHorizontal: 20,
+          paddingTop: 20,
+          position: "absolute",
+          right: 0,
+        }}
+      >
+        <PrimaryButton variant="glass" onPress={save}>
+          保存课程
+        </PrimaryButton>
+      </SafeAreaView>
     </View>
   );
 }

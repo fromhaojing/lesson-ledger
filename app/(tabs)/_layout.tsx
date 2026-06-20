@@ -5,11 +5,13 @@ import { usePathname } from "expo-router";
 
 import { getPendingLessonBadgeCount } from "@/modules/notifications/badge.service";
 import { useTheme } from "@/theme";
+import { isLiquidGlassAvailable } from "@/utils/native-appearance";
 
 export default function TabLayout() {
   const theme = useTheme();
   const pathname = usePathname();
   const [pendingCount, setPendingCount] = useState(0);
+  const liquidGlassAvailable = isLiquidGlassAvailable();
 
   const loadPendingCount = useCallback(async () => {
     try {
@@ -40,6 +42,10 @@ export default function TabLayout() {
 
   return (
     <NativeTabs
+      backgroundColor={liquidGlassAvailable ? undefined : theme.colors.surface}
+      blurEffect={liquidGlassAvailable ? undefined : "systemMaterial"}
+      disableTransparentOnScrollEdge={!liquidGlassAvailable}
+      shadowColor={liquidGlassAvailable ? undefined : theme.colors.line}
       tintColor={theme.colors.primary}
       minimizeBehavior="onScrollDown"
     >
