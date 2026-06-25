@@ -66,6 +66,8 @@ export type CalendarPalette = {
   icon: string;
   miniText: string;
   red: string;
+  searchBackground: string;
+  searchIcon: string;
   secondaryText: string;
   separator: string;
   tertiaryText: string;
@@ -99,6 +101,10 @@ export function createCalendarPalette(theme: CalendarTheme) {
     icon: isDark ? "#FFFFFF" : "#111111",
     miniText: isDark ? "#D1D1D6" : "#111111",
     red: theme.colors.primary,
+    searchBackground: isDark
+      ? "rgba(118, 118, 128, 0.24)"
+      : "rgba(118, 118, 128, 0.12)",
+    searchIcon: isDark ? "#8E8E93" : "#8E8E93",
     secondaryText: isDark ? "#8E8E93" : "#8E8E93",
     separator: isDark ? "rgba(84, 84, 88, 0.65)" : "rgba(60, 60, 67, 0.18)",
     tertiaryText: isDark ? "#636366" : "#C7C7CC",

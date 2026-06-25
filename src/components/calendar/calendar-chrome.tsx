@@ -9,6 +9,7 @@ export function CalendarChrome({
   mode,
   onGoToCurrentMonth,
   onLeadingPress,
+  onOpenSearch,
   onToggleYearMonth,
   palette,
   showTodayButton,
@@ -17,6 +18,7 @@ export function CalendarChrome({
   mode: CalendarMode;
   onGoToCurrentMonth: () => void;
   onLeadingPress: () => void;
+  onOpenSearch: () => void;
   onToggleYearMonth: () => void;
   palette: CalendarPalette;
   showTodayButton: boolean;
@@ -51,6 +53,13 @@ export function CalendarChrome({
             onPress={onGoToCurrentMonth}
             palette={palette}
           />
+          <NativeToolbarButton
+            label="搜索"
+            onPress={onOpenSearch}
+            palette={palette}
+            systemImage="magnifyingglass"
+          />
+          <View pointerEvents="none" style={{ width: toolbarButtonGap }} />
           <NativeToolbarButton
             label={modeButtonLabel}
             onPress={onToggleYearMonth}
@@ -112,7 +121,7 @@ function NativeToolbarButton({
   label: string;
   onPress: () => void;
   palette: CalendarPalette;
-  systemImage?: "calendar" | "chevron.left";
+  systemImage?: "calendar" | "chevron.left" | "magnifyingglass";
 }) {
   return (
     <NativeHost matchContents>

@@ -2,7 +2,7 @@
   "expo": {
     "name": "课时记",
     "slug": "lesson-ledger",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lessonledger",
@@ -19,7 +19,7 @@
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "课时记会在课程快结束时提醒你确认本节课金额。"
       },
-      "buildNumber": "1"
+      "buildNumber": "2"
     },
     "android": {
       "package": "com.lishuo.lesson",
