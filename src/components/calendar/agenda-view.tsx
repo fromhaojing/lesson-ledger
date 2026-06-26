@@ -25,6 +25,8 @@ export function AgendaView({
   bottomInset,
   contentWidth,
   currentToday,
+  emptyDescription = "当前范围内没有课程安排。",
+  emptyTitle = "暂无课程",
   listRef,
   onEndReached,
   onOpenLesson,
@@ -39,6 +41,8 @@ export function AgendaView({
   bottomInset: number;
   contentWidth: number;
   currentToday: string;
+  emptyDescription?: string;
+  emptyTitle?: string;
   listRef: RefObject<FlatList<AgendaSection> | null>;
   onEndReached: () => void;
   onOpenLesson: (lesson: Lesson) => void;
@@ -102,7 +106,13 @@ export function AgendaView({
       initialNumToRender={14}
       initialScrollIndex={sections.length > 0 ? initialScrollIndex : undefined}
       keyExtractor={(item) => item.dateText}
-      ListEmptyComponent={<AgendaEmptyState palette={palette} />}
+      ListEmptyComponent={
+        <AgendaEmptyState
+          description={emptyDescription}
+          palette={palette}
+          title={emptyTitle}
+        />
+      }
       maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       onEndReached={onEndReached}
       onEndReachedThreshold={1.2}
@@ -230,7 +240,15 @@ function AgendaDaySection({
   );
 }
 
-function AgendaEmptyState({ palette }: { palette: CalendarPalette }) {
+function AgendaEmptyState({
+  description,
+  palette,
+  title,
+}: {
+  description: string;
+  palette: CalendarPalette;
+  title: string;
+}) {
   return (
     <View
       style={{
@@ -247,7 +265,7 @@ function AgendaEmptyState({ palette }: { palette: CalendarPalette }) {
           textAlign: "center",
         }}
       >
-        暂无课程
+        {title}
       </Text>
       <Text
         style={{
@@ -258,7 +276,7 @@ function AgendaEmptyState({ palette }: { palette: CalendarPalette }) {
           textAlign: "center",
         }}
       >
-        当前范围内没有课程安排。
+        {description}
       </Text>
     </View>
   );

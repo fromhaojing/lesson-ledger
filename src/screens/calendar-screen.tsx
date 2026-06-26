@@ -12,7 +12,6 @@ import {
 import {
   Keyboard,
   Pressable,
-  Text,
   TextInput,
   useWindowDimensions,
   View,
@@ -73,7 +72,7 @@ import { todayText } from "@/utils/date";
 
 dayjs.locale("zh-cn");
 
-const SEARCH_PANEL_HEIGHT = 58;
+const SEARCH_SHEET_CONTENT_HEIGHT = 74;
 
 type MonthAgendaTransition = {
   agendaSelectedDate: string;
@@ -147,12 +146,8 @@ function normalizeLessonSearchText(text: string) {
   return text.trim().toLocaleLowerCase();
 }
 
-function filterLessonsByTitlePrefix(lessons: Lesson[], searchText: string) {
-  if (!searchText) return lessons;
-
-  return lessons.filter((lesson) =>
-    lesson.title.trimStart().toLocaleLowerCase().startsWith(searchText),
-  );
+function getLessonDateTexts(lessons: Lesson[]) {
+  return Array.from(new Set(lessons.map((lesson) => lesson.dateText))).sort();
 }
 
 export function CalendarScreen() {
@@ -184,6 +179,10 @@ export function CalendarScreen() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [isLessonSearchVisible, setIsLessonSearchVisible] = useState(false);
   const [lessonSearchText, setLessonSearchText] = useState("");
+  const [searchLessonResult, setSearchLessonResult] = useState<{
+    lessons: Lesson[];
+    query: string;
+  } | null>(null);
   const [monthAgendaTransition, setMonthAgendaTransition] =
     useState<MonthAgendaTransition | null>(null);
   const [calendarModeTransition, setCalendarModeTransition] =
@@ -195,10 +194,12 @@ export function CalendarScreen() {
   const calendarModeTransitionFallbackRef =
     useRef<ReturnType<typeof setTimeout> | null>(null);
   const lessonLoadRequestId = useRef(0);
+  const searchLessonLoadRequestId = useRef(0);
   const lessonSearchInputRef = useRef<TextInput>(null);
   const monthListRef = useRef<FlatList<string>>(null);
   const yearListRef = useRef<FlatList<number>>(null);
   const agendaListRef = useRef<FlatList<AgendaSection>>(null);
+  const searchAgendaListRef = useRef<FlatList<AgendaSection>>(null);
   const monthStartExtendLock = useRef(false);
   const yearStartExtendLock = useRef(false);
   const agendaStartExtendLock = useRef(false);
@@ -206,10 +207,7 @@ export function CalendarScreen() {
   const palette = useMemo(() => createCalendarPalette(theme), [theme]);
   const monthViewAvailableHeight = Math.max(
     0,
-    contentFrameHeight ||
-      contentHeight -
-        88 -
-        (isLessonSearchVisible ? SEARCH_PANEL_HEIGHT : 0),
+    contentFrameHeight || contentHeight - 88,
   );
 
   const monthItems = useMemo(
@@ -261,23 +259,66 @@ export function CalendarScreen() {
     () => normalizeLessonSearchText(lessonSearchText),
     [lessonSearchText],
   );
-  const visibleLessons = useMemo(
-    () => filterLessonsByTitlePrefix(lessons, normalizedLessonSearchText),
-    [lessons, normalizedLessonSearchText],
-  );
-  const lessonsByDate = useMemo(
-    () => groupLessonsByDate(visibleLessons),
-    [visibleLessons],
-  );
+  const isLessonSearchMode = isLessonSearchVisible;
+  const isLessonSearchActive =
+    isLessonSearchMode && normalizedLessonSearchText.length > 0;
+  useEffect(() => {
+    const requestId = ++searchLessonLoadRequestId.current;
+
+    if (!isLessonSearchActive) return;
+
+    lessonRepository
+      .findByTitlePrefix(normalizedLessonSearchText)
+      .then((items) => {
+        if (requestId === searchLessonLoadRequestId.current) {
+          setSearchLessonResult({
+            lessons: items,
+            query: normalizedLessonSearchText,
+          });
+        }
+      })
+      .catch((error) => {
+        console.warn("Failed to search calendar lessons", error);
+      });
+  }, [isLessonSearchActive, normalizedLessonSearchText]);
+
+  const lessonsByDate = useMemo(() => groupLessonsByDate(lessons), [lessons]);
   const agendaSections = useMemo(
     () =>
       buildAgendaSections(
         agendaDates,
         lessonsByDate,
         mode === "agenda" ? currentToday : undefined,
-      ),
+    ),
     [agendaDates, currentToday, lessonsByDate, mode],
   );
+  const searchLessons = useMemo(
+    () =>
+      isLessonSearchActive &&
+      searchLessonResult?.query === normalizedLessonSearchText
+        ? searchLessonResult.lessons
+        : [],
+    [isLessonSearchActive, normalizedLessonSearchText, searchLessonResult],
+  );
+  const searchLessonsByDate = useMemo(
+    () => groupLessonsByDate(searchLessons),
+    [searchLessons],
+  );
+  const searchAgendaDates = useMemo(
+    () => getLessonDateTexts(searchLessons),
+    [searchLessons],
+  );
+  const searchAgendaSections = useMemo(
+    () => buildAgendaSections(searchAgendaDates, searchLessonsByDate),
+    [searchAgendaDates, searchLessonsByDate],
+  );
+  const searchAgendaSelectedDate =
+    searchAgendaSections[0]?.dateText ?? selectedDate;
+  const searchEmptyDescription = isLessonSearchActive
+    ? "换个课程开头试试。"
+    : "输入课程开头查看结果。";
+  const searchEmptyTitle = isLessonSearchActive ? "没有匹配课程" : "搜索课程";
+
   useEffect(() => {
     return () => {
       if (calendarModeTransitionFallbackRef.current) {
@@ -385,6 +426,10 @@ export function CalendarScreen() {
     },
     [extendAgendaRangeStart],
   );
+  const handleSearchAgendaScroll = useCallback(
+    (_event: NativeSyntheticEvent<NativeScrollEvent>) => {},
+    [],
+  );
 
   const handleMonthViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken<string>[] }) => {
@@ -412,6 +457,10 @@ export function CalendarScreen() {
       setVisibleMonth(monthKeyFromDateText(nextSection.dateText));
       setVisibleYear(dayjs(nextSection.dateText).year());
     },
+    [],
+  );
+  const handleSearchAgendaViewableItemsChanged = useCallback(
+    (_info: { viewableItems: ViewToken<AgendaSection>[] }) => {},
     [],
   );
 
@@ -618,6 +667,9 @@ export function CalendarScreen() {
     },
     [includeDateInAgendaRange, navigateCalendarMode],
   );
+  const selectSearchAgendaDate = useCallback((dateText: string) => {
+    setSelectedDate(dateText);
+  }, []);
 
   const finishMonthAgendaTransition = useCallback((transitionId: number) => {
     const completion = transitionCompletionRef.current;
@@ -670,12 +722,7 @@ export function CalendarScreen() {
         if (transitionId !== transitionIdRef.current) return;
       }
 
-      const transitionLessonsByDate = groupLessonsByDate(
-        filterLessonsByTitlePrefix(
-          transitionLessons,
-          normalizedLessonSearchText,
-        ),
-      );
+      const transitionLessonsByDate = groupLessonsByDate(transitionLessons);
       transitionCompletionRef.current = {
         id: transitionId,
         run: () => openAgendaAtDate(dateText, false),
@@ -698,7 +745,7 @@ export function CalendarScreen() {
         selectedDate: dateText,
       });
     },
-    [currentToday, lessons, normalizedLessonSearchText, openAgendaAtDate],
+    [currentToday, lessons, openAgendaAtDate],
   );
 
   const selectMonth = useCallback(
@@ -813,7 +860,6 @@ export function CalendarScreen() {
       <View style={{ backgroundColor: palette.background, paddingTop: insets.top }}>
         <CalendarChrome
           leadingLabel={shouldReturnToMonth ? "返回" : "首页"}
-          mode={mode}
           onGoToCurrentMonth={
             isCalendarTransitioning ? ignoreTransitionPress : goToCurrentMonth
           }
@@ -833,20 +879,15 @@ export function CalendarScreen() {
           palette={palette}
           showTodayButton={showTodayButton}
         />
-        <CalendarLessonSearch
-          inputRef={lessonSearchInputRef}
-          isVisible={isLessonSearchVisible}
-          onCancel={cancelLessonSearch}
-          onChangeText={setLessonSearchText}
-          onClear={() => setLessonSearchText("")}
-          palette={palette}
-          value={lessonSearchText}
-        />
       </View>
 
       <View
         onLayout={handleContentFrameLayout}
-        style={{ backgroundColor: palette.background, flex: 1, marginTop: 12 }}
+        style={{
+          backgroundColor: palette.background,
+          flex: 1,
+          marginTop: isLessonSearchMode ? 22 : 12,
+        }}
       >
         <View
           pointerEvents={isCalendarTransitioning ? "none" : "auto"}
@@ -951,6 +992,42 @@ export function CalendarScreen() {
               />
             ) : null}
           </View>
+
+          <View
+            accessibilityElementsHidden={!isLessonSearchMode}
+            importantForAccessibility={
+              isLessonSearchMode ? "auto" : "no-hide-descendants"
+            }
+            pointerEvents={isLessonSearchMode ? "auto" : "none"}
+            style={[
+              calendarLayerStyle,
+              {
+                backgroundColor: palette.background,
+                opacity: isLessonSearchMode ? 1 : 0,
+                zIndex: isLessonSearchMode ? 6 : 1,
+              },
+            ]}
+          >
+            {isLessonSearchMode ? (
+              <AgendaView
+                availableHeight={contentFrameHeight}
+                bottomInset={insets.bottom}
+                contentWidth={contentWidth}
+                currentToday={currentToday}
+                emptyDescription={searchEmptyDescription}
+                emptyTitle={searchEmptyTitle}
+                listRef={searchAgendaListRef}
+                onEndReached={ignoreTransitionPress}
+                onOpenLesson={openLesson}
+                onScroll={handleSearchAgendaScroll}
+                onSelectDate={selectSearchAgendaDate}
+                onViewableItemsChanged={handleSearchAgendaViewableItemsChanged}
+                palette={palette}
+                sections={searchAgendaSections}
+                selectedDate={searchAgendaSelectedDate}
+              />
+            ) : null}
+          </View>
         </View>
 
         {calendarModeTransition && contentFrameHeight > 0 ? (
@@ -992,33 +1069,43 @@ export function CalendarScreen() {
           />
         ) : null}
       </View>
+
+      <CalendarLessonSearchSheet
+        inputRef={lessonSearchInputRef}
+        isVisible={isLessonSearchVisible}
+        onChangeText={setLessonSearchText}
+        onClose={cancelLessonSearch}
+        palette={palette}
+        topInset={insets.top}
+        value={lessonSearchText}
+      />
     </View>
   );
 }
 
-function CalendarLessonSearch({
+function CalendarLessonSearchSheet({
   inputRef,
   isVisible,
-  onCancel,
   onChangeText,
-  onClear,
+  onClose,
   palette,
+  topInset,
   value,
 }: {
   inputRef: RefObject<TextInput | null>;
   isVisible: boolean;
-  onCancel: () => void;
   onChangeText: (value: string) => void;
-  onClear: () => void;
+  onClose: () => void;
   palette: CalendarPalette;
+  topInset: number;
   value: string;
 }) {
-  const hasValue = value.length > 0;
   const progress = useSharedValue(isVisible ? 1 : 0);
+  const sheetHeight = topInset + SEARCH_SHEET_CONTENT_HEIGHT;
 
   useEffect(() => {
     progress.value = withTiming(isVisible ? 1 : 0, {
-      duration: 240,
+      duration: 260,
       easing: Easing.bezier(0.22, 1, 0.36, 1),
     });
 
@@ -1034,115 +1121,104 @@ function CalendarLessonSearch({
   }, [inputRef, isVisible, progress]);
 
   const panelStyle = useAnimatedStyle(() => ({
-    height: SEARCH_PANEL_HEIGHT * progress.value,
-    opacity: progress.value,
-    transform: [{ translateY: -10 * (1 - progress.value) }],
+    transform: [{ translateY: -sheetHeight * (1 - progress.value) }],
   }));
 
   return (
     <Animated.View
-      pointerEvents={isVisible ? "auto" : "none"}
-      style={[
-        {
-          backgroundColor: palette.background,
-          overflow: "hidden",
-        },
-        panelStyle,
-      ]}
+      pointerEvents={isVisible ? "box-none" : "none"}
+      style={searchOverlayStyle}
     >
       <View
         style={{
-          alignItems: "center",
-          flexDirection: "row",
-          gap: 12,
-          height: SEARCH_PANEL_HEIGHT,
-          paddingBottom: 8,
-          paddingHorizontal: 16,
-          paddingTop: 8,
+          height: sheetHeight,
+          overflow: "hidden",
         }}
       >
-        <View
-          style={{
-            alignItems: "center",
-            backgroundColor: palette.searchBackground,
-            borderCurve: "continuous",
-            borderRadius: 12,
-            flex: 1,
-            flexDirection: "row",
-            height: 42,
-            paddingLeft: 12,
-            paddingRight: 4,
-          }}
+        <Animated.View
+          style={[
+            {
+              alignItems: "center",
+              backgroundColor: palette.background,
+              borderBottomColor: palette.separator,
+              borderBottomWidth: 0.5,
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
+              flexDirection: "row",
+              gap: 10,
+              height: sheetHeight,
+              paddingBottom: 12,
+              paddingHorizontal: 16,
+              paddingTop: topInset + 12,
+            },
+            panelStyle,
+          ]}
         >
-          <Ionicons name="search" color={palette.searchIcon} size={18} />
-          <TextInput
-            ref={inputRef}
-            accessibilityLabel="搜索课程"
-            autoCapitalize="none"
-            autoCorrect={false}
-            onChangeText={onChangeText}
-            placeholder="搜索课程"
-            placeholderTextColor={palette.searchIcon}
-            returnKeyType="search"
-            selectionColor={palette.red}
+          <View
             style={{
-              color: palette.text,
+              alignItems: "center",
+              backgroundColor: palette.searchBackground,
+              borderCurve: "continuous",
+              borderRadius: 14,
               flex: 1,
-              fontSize: 16,
+              flexDirection: "row",
               height: 42,
-              paddingHorizontal: 8,
-              paddingVertical: 0,
+              paddingLeft: 12,
+              paddingRight: 10,
             }}
-            value={value}
-          />
+          >
+            <Ionicons name="search" color={palette.searchIcon} size={19} />
+            <TextInput
+              ref={inputRef}
+              accessibilityLabel="搜索课程"
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={onChangeText}
+              placeholder="搜索课程"
+              placeholderTextColor={palette.searchIcon}
+              returnKeyType="search"
+              selectionColor={palette.red}
+              style={{
+                color: palette.text,
+                flex: 1,
+                fontSize: 17,
+                height: 42,
+                paddingHorizontal: 9,
+                paddingVertical: 0,
+              }}
+              value={value}
+            />
+          </View>
           <Pressable
-            accessibilityLabel="清除搜索"
+            accessibilityLabel="关闭搜索"
             accessibilityRole="button"
             hitSlop={8}
-            onPress={onClear}
-            pointerEvents={hasValue ? "auto" : "none"}
+            onPress={onClose}
             style={({ pressed }) => ({
               alignItems: "center",
-              height: 34,
+              backgroundColor: palette.searchBackground,
+              borderCurve: "continuous",
+              borderRadius: 999,
+              height: 36,
               justifyContent: "center",
-              opacity: hasValue ? (pressed ? 0.5 : 1) : 0,
-              width: 34,
+              opacity: pressed ? 0.56 : 1,
+              width: 36,
             })}
           >
-            <Ionicons
-              name="close-circle"
-              color={palette.searchIcon}
-              size={18}
-            />
+            <Ionicons name="close" color={palette.searchIcon} size={22} />
           </Pressable>
-        </View>
-        <Pressable
-          accessibilityLabel="取消搜索"
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={onCancel}
-          style={({ pressed }) => ({
-            alignItems: "center",
-            alignSelf: "stretch",
-            justifyContent: "center",
-            minWidth: 40,
-            opacity: pressed ? 0.55 : 1,
-          })}
-        >
-          <Text
-            style={{
-              color: palette.red,
-              fontSize: 17,
-              fontWeight: "500",
-            }}
-          >
-            取消
-          </Text>
-        </Pressable>
+        </Animated.View>
       </View>
     </Animated.View>
   );
 }
+
+const searchOverlayStyle = {
+  left: 0,
+  position: "absolute" as const,
+  right: 0,
+  top: 0,
+  zIndex: 30,
+};
 
 const calendarLayerStyle = {
   bottom: 0,

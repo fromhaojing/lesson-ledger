@@ -12,6 +12,7 @@ export function EmptyState({ title, description }: { title: string; description:
         backgroundColor: theme.colors.surface,
         gap: 8,
         padding: 24,
+        borderRadius: theme.radius.lg
       }}
     >
       <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: "600" }}>{title}</Text>

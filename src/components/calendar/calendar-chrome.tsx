@@ -2,11 +2,10 @@ import { View } from "react-native";
 import { Button as NativeButton, Host as NativeHost } from "@expo/ui/swift-ui";
 import { buttonStyle, controlSize, tint } from "@expo/ui/swift-ui/modifiers";
 
-import { toolbarButtonGap, type CalendarMode, type CalendarPalette } from "@/components/calendar/calendar-utils";
+import { toolbarButtonGap, type CalendarPalette } from "@/components/calendar/calendar-utils";
 
 export function CalendarChrome({
   leadingLabel,
-  mode,
   onGoToCurrentMonth,
   onLeadingPress,
   onOpenSearch,
@@ -15,7 +14,6 @@ export function CalendarChrome({
   showTodayButton,
 }: {
   leadingLabel: string;
-  mode: CalendarMode;
   onGoToCurrentMonth: () => void;
   onLeadingPress: () => void;
   onOpenSearch: () => void;
@@ -23,8 +21,6 @@ export function CalendarChrome({
   palette: CalendarPalette;
   showTodayButton: boolean;
 }) {
-  const modeButtonLabel = mode === "year" ? "月" : "年";
-
   return (
     <View
       style={{
@@ -54,14 +50,14 @@ export function CalendarChrome({
             palette={palette}
           />
           <NativeToolbarButton
-            label="搜索"
+            label=""
             onPress={onOpenSearch}
             palette={palette}
             systemImage="magnifyingglass"
           />
           <View pointerEvents="none" style={{ width: toolbarButtonGap }} />
           <NativeToolbarButton
-            label={modeButtonLabel}
+            label=""
             onPress={onToggleYearMonth}
             palette={palette}
             systemImage="calendar"

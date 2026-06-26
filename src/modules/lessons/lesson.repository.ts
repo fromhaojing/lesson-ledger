@@ -124,6 +124,21 @@ export const lessonRepository = {
     return rows.map(toLesson);
   },
 
+  async findByTitlePrefix(prefix: string) {
+    const searchPrefix = prefix.trim();
+    if (!searchPrefix) return [];
+
+    const db = await getDatabase();
+    const rows = await db.getAllAsync<LessonRow>(
+      `SELECT * FROM lesson
+       WHERE ltrim(title) LIKE ? ESCAPE '\\'
+         AND deleted_at IS NULL
+       ORDER BY date_text ASC, start_at ASC`,
+      [`${escapeLikePattern(searchPrefix)}%`]
+    );
+    return rows.map(toLesson);
+  },
+
   async findPendingLessons() {
     const db = await getDatabase();
     const rows = await db.getAllAsync<LessonRow>(
@@ -333,4 +348,8 @@ function assertUpdated(changes: number, message: string) {
   if (changes === 0) {
     throw new Error(message);
   }
+}
+
+function escapeLikePattern(value: string) {
+  return value.replace(/[\\%_]/g, "\\$&");
 }
