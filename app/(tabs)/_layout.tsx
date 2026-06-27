@@ -3,7 +3,10 @@ import { AppState } from "react-native";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { usePathname } from "expo-router";
 
-import { getPendingLessonBadgeCount } from "@/modules/notifications/badge.service";
+import {
+  getPendingLessonBadgeCount,
+  subscribePendingLessonBadgeCount,
+} from "@/modules/notifications/badge.service";
 import { useTheme } from "@/theme";
 import { isLiquidGlassAvailable } from "@/utils/native-appearance";
 
@@ -25,6 +28,8 @@ export default function TabLayout() {
     const timer = setTimeout(loadPendingCount, 0);
     return () => clearTimeout(timer);
   }, [loadPendingCount, pathname]);
+
+  useEffect(() => subscribePendingLessonBadgeCount(setPendingCount), []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {

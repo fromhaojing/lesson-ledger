@@ -7,6 +7,7 @@ import { LessonListItem } from "@/components/lesson-list-item";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
 import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import type { Lesson } from "@/modules/lessons/lesson.types";
+import { subscribePendingLessonBadgeCount } from "@/modules/notifications/badge.service";
 import { useTheme } from "@/theme";
 
 export function PendingScreen() {
@@ -20,17 +21,28 @@ export function PendingScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      const unsubscribe = subscribePendingLessonBadgeCount(() => {
+        void load();
+      });
+      void load();
+      return unsubscribe;
+    }, [load]),
   );
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <SafeAreaScrollView contentContainerStyle={{ gap: 10, paddingHorizontal: 20 }}>
+      <SafeAreaScrollView
+        contentContainerStyle={{ gap: 10, paddingHorizontal: 20 }}
+      >
         {lessons.length === 0 ? (
-          <EmptyState title="没有待确认课程" description="已经确认过的课程会进入统计页，未结束的课程会继续等待。" />
+          <EmptyState
+            title="没有待确认课程"
+            description="已经确认过的课程会进入统计页，未结束的课程会继续等待。"
+          />
         ) : (
-          lessons.map((lesson) => <LessonListItem key={lesson.id} lesson={lesson} />)
+          lessons.map((lesson) => (
+            <LessonListItem key={lesson.id} lesson={lesson} />
+          ))
         )}
       </SafeAreaScrollView>
     </View>

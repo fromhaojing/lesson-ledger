@@ -908,23 +908,25 @@ export function CalendarScreen() {
               },
             ]}
           >
-            <MonthView
-              availableHeight={monthViewAvailableHeight}
-              bottomInset={insets.bottom}
-              contentWidth={contentWidth}
-              currentToday={currentToday}
-              listRef={monthListRef}
-              lessonsByDate={lessonsByDate}
-              months={monthItems}
-              onEndReached={extendMonthRangeEnd}
-              onOpenLesson={openLesson}
-              onScroll={handleMonthScroll}
-              onSelectDate={openMonthDateAgenda}
-              onViewableItemsChanged={handleMonthViewableItemsChanged}
-              palette={palette}
-              selectedDate={selectedDate}
-              visibleMonth={visibleMonth}
-            />
+            {contentFrameHeight > 0 ? (
+              <MonthView
+                availableHeight={monthViewAvailableHeight}
+                bottomInset={insets.bottom}
+                contentWidth={contentWidth}
+                currentToday={currentToday}
+                listRef={monthListRef}
+                lessonsByDate={lessonsByDate}
+                months={monthItems}
+                onEndReached={extendMonthRangeEnd}
+                onOpenLesson={openLesson}
+                onScroll={handleMonthScroll}
+                onSelectDate={openMonthDateAgenda}
+                onViewableItemsChanged={handleMonthViewableItemsChanged}
+                palette={palette}
+                selectedDate={selectedDate}
+                visibleMonth={visibleMonth}
+              />
+            ) : null}
           </View>
 
           <View

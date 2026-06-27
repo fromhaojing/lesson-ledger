@@ -59,7 +59,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 type ReminderTiming = "before" | "after";
 
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.0.3";
 
 function normalizeDefaultAmount(value: string) {
   return normalizeNumberWheelValue(

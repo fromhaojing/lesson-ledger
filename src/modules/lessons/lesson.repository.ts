@@ -249,6 +249,27 @@ export const lessonRepository = {
     assertUpdated(result.changes, "当前课程状态无法确认金额");
   },
 
+  async confirmManyWithDefaultAmounts(ids: string[]) {
+    const lessonIds = Array.from(new Set(ids));
+    if (lessonIds.length === 0) return 0;
+
+    const db = await getDatabase();
+    const now = new Date().toISOString();
+    const placeholders = lessonIds.map(() => "?").join(",");
+    const result = await db.runAsync(
+      `UPDATE lesson
+       SET status = 'confirmed',
+           final_amount = COALESCE(final_amount, default_amount),
+           confirmed_at = ?,
+           updated_at = ?
+       WHERE id IN (${placeholders})
+         AND deleted_at IS NULL
+         AND status IN ('scheduled', 'pending')`,
+      [now, now, ...lessonIds]
+    );
+    return result.changes;
+  },
+
   async markCancelled(id: string) {
     const db = await getDatabase();
     const now = new Date().toISOString();

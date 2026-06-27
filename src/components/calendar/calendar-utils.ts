@@ -78,7 +78,7 @@ export const weekDayLabels = ["日", "一", "二", "三", "四", "五", "六"];
 export const monthRangeStep = 12;
 export const yearRangeStep = 8;
 export const agendaRangeStep = 45;
-export const toolbarButtonGap = 8;
+export const toolbarButtonGap = 10;
 export const listViewabilityConfig = { itemVisiblePercentThreshold: 35 };
 
 export function createCalendarPalette(theme: CalendarTheme) {

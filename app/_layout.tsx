@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { StatusBar } from "expo-status-bar";
 import { Stack, usePathname, useRouter } from "expo-router";
@@ -19,6 +19,13 @@ import Animated, {
 
 import { bootstrapApp } from "@/bootstrap";
 import { HeaderCreateMenu } from "@/components/header-create-menu";
+import { lessonRepository } from "@/modules/lessons/lesson.repository";
+import {
+  getPendingLessonBadgeCount,
+  subscribePendingLessonBadgeCount,
+  syncPendingLessonBadge,
+} from "@/modules/notifications/badge.service";
+import { syncLessonNotifications } from "@/modules/notifications/notification.service";
 import { useTheme } from "@/theme";
 
 const splashImages = {
@@ -50,6 +57,9 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
+  const [pendingHeaderCount, setPendingHeaderCount] = useState(0);
+  const [confirmingPendingLessons, setConfirmingPendingLessons] =
+    useState(false);
   const splashPulse = useSharedValue(0);
   const splashImageStyle = useAnimatedStyle(() => ({
     transform: [
@@ -57,9 +67,72 @@ export default function RootLayout() {
       { translateY: splashPulse.value * SPLASH_PULSE_OFFSET_Y },
     ],
   }));
+  const loadPendingHeaderCount = useCallback(async () => {
+    try {
+      setPendingHeaderCount(await getPendingLessonBadgeCount());
+    } catch (error) {
+      console.warn("Failed to load pending count", error);
+    }
+  }, []);
+  const confirmPendingLessons = useCallback(async (lessonIds: string[]) => {
+    setConfirmingPendingLessons(true);
+    try {
+      const confirmedCount =
+        await lessonRepository.confirmManyWithDefaultAmounts(lessonIds);
+      await syncLessonNotifications();
+      await syncPendingLessonBadge();
+      Alert.alert("确认完成", `已确认 ${confirmedCount} 节课程。`);
+    } catch (error) {
+      Alert.alert(
+        "确认失败",
+        error instanceof Error ? error.message : "请稍后再试。",
+      );
+    } finally {
+      setConfirmingPendingLessons(false);
+    }
+  }, []);
+  const confirmAllPendingLessons = useCallback(async () => {
+    if (confirmingPendingLessons) return;
+
+    try {
+      await lessonRepository.refreshPendingStatuses();
+      const lessons = await lessonRepository.findPendingLessons();
+      const lessonIds = lessons.map((lesson) => lesson.id);
+      setPendingHeaderCount(lessonIds.length);
+
+      if (lessonIds.length === 0) {
+        Alert.alert("没有待确认课程", "当前页面没有需要确认的课程。");
+        return;
+      }
+
+      Alert.alert(
+        "确认全部课程",
+        `将按当前金额确认当前页面的 ${lessonIds.length} 节课程。`,
+        [
+          { text: "取消", style: "cancel" },
+          {
+            text: "全部确认",
+            onPress: () => {
+              void confirmPendingLessons(lessonIds);
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      Alert.alert(
+        "确认失败",
+        error instanceof Error ? error.message : "请稍后再试。",
+      );
+    }
+  }, [confirmPendingLessons, confirmingPendingLessons]);
   const headerTitle = getHeaderTitle(pathname);
   const headerLeft = getHeaderLeft(pathname);
-  const extra = getHeaderExtra(pathname);
+  const extra = getHeaderExtra(
+    pathname,
+    pendingHeaderCount,
+    confirmingPendingLessons,
+    confirmAllPendingLessons,
+  );
   const headerCommonOptions: any = {
     headerShadowVisible: false,
     headerBackButtonDisplayMode: "minimal",
@@ -145,6 +218,19 @@ export default function RootLayout() {
 
     return () => subscription.remove();
   }, [router]);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    const timer = setTimeout(loadPendingHeaderCount, 0);
+    const unsubscribe =
+      subscribePendingLessonBadgeCount(setPendingHeaderCount);
+
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [loadPendingHeaderCount, pathname, ready]);
 
   if (!ready) {
     return (
@@ -371,9 +457,57 @@ function getHeaderLeft(pathname: string) {
   return <HeaderCalendarButton />;
 }
 
-function getHeaderExtra(pathname: string) {
+function getHeaderExtra(
+  pathname: string,
+  pendingCount: number,
+  confirming: boolean,
+  onConfirmAllPending: () => void,
+) {
+  if (pathname.startsWith("/pending")) {
+    if (pendingCount === 0) return null;
+    return (
+      <HeaderConfirmAllPendingButton
+        confirming={confirming}
+        onPress={onConfirmAllPending}
+      />
+    );
+  }
   if (pathname !== "/") return null;
   return <HeaderCreateMenu />;
+}
+
+function HeaderConfirmAllPendingButton({
+  confirming,
+  onPress,
+}: {
+  confirming: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      accessibilityLabel="确认全部待确认课程"
+      accessibilityRole="button"
+      disabled={confirming}
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        alignItems: "center",
+        borderRadius: 18,
+        height: 36,
+        justifyContent: "center",
+        opacity: confirming ? 0.36 : pressed ? 0.55 : 1,
+        width: 36,
+      })}
+    >
+      <Ionicons
+        name={confirming ? "hourglass-outline" : "checkmark-done-outline"}
+        size={23}
+        color={theme.colors.primary}
+      />
+    </Pressable>
+  );
 }
 
 function HeaderCalendarButton() {
