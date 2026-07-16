@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { StatusBar } from "expo-status-bar";
 import { Stack, usePathname, useRouter } from "expo-router";
@@ -19,13 +19,7 @@ import Animated, {
 
 import { bootstrapApp } from "@/bootstrap";
 import { HeaderCreateMenu } from "@/components/header-create-menu";
-import { lessonRepository } from "@/modules/lessons/lesson.repository";
-import {
-  getPendingLessonBadgeCount,
-  subscribePendingLessonBadgeCount,
-  syncPendingLessonBadge,
-} from "@/modules/notifications/badge.service";
-import { syncLessonNotifications } from "@/modules/notifications/notification.service";
+import { usePendingHeaderAction } from "@/hooks/use-pending-header-action";
 import { useTheme } from "@/theme";
 
 const splashImages = {
@@ -35,6 +29,8 @@ const splashImages = {
 const SPLASH_PULSE_DURATION = 1400;
 const SPLASH_PULSE_SCALE = 0.052;
 const SPLASH_PULSE_OFFSET_Y = -14;
+const lessonConfirmNotificationPathPattern =
+  /^\/lessons\/[A-Za-z0-9_-]+\/confirm$/;
 
 SplashScreen.preventAutoHideAsync().catch((error) => {
   console.warn("Failed to keep splash screen visible", error);
@@ -57,9 +53,11 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
-  const [pendingHeaderCount, setPendingHeaderCount] = useState(0);
-  const [confirmingPendingLessons, setConfirmingPendingLessons] =
-    useState(false);
+  const {
+    confirmAllPendingLessons,
+    confirmingPendingLessons,
+    pendingHeaderCount,
+  } = usePendingHeaderAction({ pathname, ready });
   const splashPulse = useSharedValue(0);
   const splashImageStyle = useAnimatedStyle(() => ({
     transform: [
@@ -67,64 +65,6 @@ export default function RootLayout() {
       { translateY: splashPulse.value * SPLASH_PULSE_OFFSET_Y },
     ],
   }));
-  const loadPendingHeaderCount = useCallback(async () => {
-    try {
-      setPendingHeaderCount(await getPendingLessonBadgeCount());
-    } catch (error) {
-      console.warn("Failed to load pending count", error);
-    }
-  }, []);
-  const confirmPendingLessons = useCallback(async (lessonIds: string[]) => {
-    setConfirmingPendingLessons(true);
-    try {
-      const confirmedCount =
-        await lessonRepository.confirmManyWithDefaultAmounts(lessonIds);
-      await syncLessonNotifications();
-      await syncPendingLessonBadge();
-      Alert.alert("确认完成", `已确认 ${confirmedCount} 节课程。`);
-    } catch (error) {
-      Alert.alert(
-        "确认失败",
-        error instanceof Error ? error.message : "请稍后再试。",
-      );
-    } finally {
-      setConfirmingPendingLessons(false);
-    }
-  }, []);
-  const confirmAllPendingLessons = useCallback(async () => {
-    if (confirmingPendingLessons) return;
-
-    try {
-      await lessonRepository.refreshPendingStatuses();
-      const lessons = await lessonRepository.findPendingLessons();
-      const lessonIds = lessons.map((lesson) => lesson.id);
-      setPendingHeaderCount(lessonIds.length);
-
-      if (lessonIds.length === 0) {
-        Alert.alert("没有待确认课程", "当前页面没有需要确认的课程。");
-        return;
-      }
-
-      Alert.alert(
-        "确认全部课程",
-        `将按当前金额确认当前页面的 ${lessonIds.length} 节课程。`,
-        [
-          { text: "取消", style: "cancel" },
-          {
-            text: "全部确认",
-            onPress: () => {
-              void confirmPendingLessons(lessonIds);
-            },
-          },
-        ],
-      );
-    } catch (error) {
-      Alert.alert(
-        "确认失败",
-        error instanceof Error ? error.message : "请稍后再试。",
-      );
-    }
-  }, [confirmPendingLessons, confirmingPendingLessons]);
   const headerTitle = getHeaderTitle(pathname);
   const headerLeft = getHeaderLeft(pathname);
   const extra = getHeaderExtra(
@@ -210,27 +150,15 @@ export default function RootLayout() {
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const url = response.notification.request.content.data?.url;
-        if (typeof url === "string") {
-          router.push(url as never);
+        const path = getAllowedNotificationPath(url);
+        if (path) {
+          router.push(path);
         }
       },
     );
 
     return () => subscription.remove();
   }, [router]);
-
-  useEffect(() => {
-    if (!ready) return;
-
-    const timer = setTimeout(loadPendingHeaderCount, 0);
-    const unsubscribe =
-      subscribePendingLessonBadgeCount(setPendingHeaderCount);
-
-    return () => {
-      clearTimeout(timer);
-      unsubscribe();
-    };
-  }, [loadPendingHeaderCount, pathname, ready]);
 
   if (!ready) {
     return (
@@ -443,6 +371,12 @@ export default function RootLayout() {
       </ActionSheetProvider>
     </SafeAreaProvider>
   );
+}
+
+function getAllowedNotificationPath(value: unknown) {
+  if (typeof value !== "string") return null;
+  if (!lessonConfirmNotificationPathPattern.test(value)) return null;
+  return value as `/lessons/${string}/confirm`;
 }
 
 function getHeaderTitle(pathname: string) {

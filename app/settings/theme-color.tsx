@@ -1,3 +1,3 @@
-import { ThemeColorSettingsScreen } from "@/screens/settings-screen";
+import { ThemeColorSettingsScreen } from "@/screens/settings/theme-color-settings-screen";
 
 export default ThemeColorSettingsScreen;

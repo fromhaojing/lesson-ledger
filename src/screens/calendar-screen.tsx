@@ -27,7 +27,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AgendaView } from "@/components/calendar/agenda-view";
@@ -47,8 +47,8 @@ import {
   buildMonthRange,
   buildYearRange,
   createCalendarPalette,
-  getLessonQueryRange,
   groupLessonsByDate,
+  mergeLessonsForRange,
   monthKeyFromDateText,
   monthRangeStep,
   shiftMonth,
@@ -67,6 +67,8 @@ import { MonthView } from "@/components/calendar/month-view";
 import { YearView } from "@/components/calendar/year-view";
 import { lessonRepository } from "@/modules/lessons/lesson.repository";
 import type { Lesson } from "@/modules/lessons/lesson.types";
+import { useCalendarData } from "@/screens/calendar/use-calendar-data";
+import { useLessonSearch } from "@/screens/calendar/use-lesson-search";
 import { useTheme } from "@/theme";
 import { todayText } from "@/utils/date";
 
@@ -119,37 +121,6 @@ function getAgendaRangeIncludingDate(
     : nextRange;
 }
 
-function mergeLessonsForRange(
-  currentLessons: Lesson[],
-  rangeLessons: Lesson[],
-  range: DateRange,
-) {
-  const merged = new Map<string, Lesson>();
-
-  for (const lesson of currentLessons) {
-    if (lesson.dateText < range.start || lesson.dateText > range.end) {
-      merged.set(lesson.id, lesson);
-    }
-  }
-
-  for (const lesson of rangeLessons) {
-    merged.set(lesson.id, lesson);
-  }
-
-  return Array.from(merged.values()).sort((a, b) => {
-    const dateOrder = a.dateText.localeCompare(b.dateText);
-    return dateOrder === 0 ? a.startAt.localeCompare(b.startAt) : dateOrder;
-  });
-}
-
-function normalizeLessonSearchText(text: string) {
-  return text.trim().toLocaleLowerCase();
-}
-
-function getLessonDateTexts(lessons: Lesson[]) {
-  return Array.from(new Set(lessons.map((lesson) => lesson.dateText))).sort();
-}
-
 export function CalendarScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -176,13 +147,8 @@ export function CalendarScreen() {
     buildInitialAgendaRange(currentToday),
   );
   const [scrollTarget, setScrollTarget] = useState<ScrollTarget | null>(null);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [isLessonSearchVisible, setIsLessonSearchVisible] = useState(false);
   const [lessonSearchText, setLessonSearchText] = useState("");
-  const [searchLessonResult, setSearchLessonResult] = useState<{
-    lessons: Lesson[];
-    query: string;
-  } | null>(null);
   const [monthAgendaTransition, setMonthAgendaTransition] =
     useState<MonthAgendaTransition | null>(null);
   const [calendarModeTransition, setCalendarModeTransition] =
@@ -193,8 +159,6 @@ export function CalendarScreen() {
     useRef<MonthAgendaTransitionCompletion | null>(null);
   const calendarModeTransitionFallbackRef =
     useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lessonLoadRequestId = useRef(0);
-  const searchLessonLoadRequestId = useRef(0);
   const lessonSearchInputRef = useRef<TextInput>(null);
   const monthListRef = useRef<FlatList<string>>(null);
   const yearListRef = useRef<FlatList<number>>(null);
@@ -218,106 +182,26 @@ export function CalendarScreen() {
     () => buildYearRange(yearRange.start, yearRange.end),
     [yearRange.end, yearRange.start],
   );
-  const agendaDates = useMemo(
-    () => buildDateRange(agendaRange.start, agendaRange.end),
-    [agendaRange.end, agendaRange.start],
-  );
 
-  const lessonQueryRange = useMemo(
-    () => getLessonQueryRange(mode, visibleMonth, visibleYear, agendaRange),
-    [agendaRange, mode, visibleMonth, visibleYear],
-  );
-  const lessonQueryEnd = lessonQueryRange.end;
-  const lessonQueryStart = lessonQueryRange.start;
-
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
-      const requestId = ++lessonLoadRequestId.current;
-      const queryRange = { end: lessonQueryEnd, start: lessonQueryStart };
-
-      lessonRepository
-        .findBetween(queryRange.start, queryRange.end)
-        .then((items) => {
-          if (mounted && requestId === lessonLoadRequestId.current) {
-            setLessons((currentLessons) =>
-              mergeLessonsForRange(currentLessons, items, queryRange),
-            );
-          }
-        })
-        .catch((error) => {
-          console.warn("Failed to load calendar lessons", error);
-        });
-
-      return () => {
-        mounted = false;
-      };
-    }, [lessonQueryEnd, lessonQueryStart]),
-  );
-
-  const normalizedLessonSearchText = useMemo(
-    () => normalizeLessonSearchText(lessonSearchText),
-    [lessonSearchText],
-  );
   const isLessonSearchMode = isLessonSearchVisible;
-  const isLessonSearchActive =
-    isLessonSearchMode && normalizedLessonSearchText.length > 0;
-  useEffect(() => {
-    const requestId = ++searchLessonLoadRequestId.current;
-
-    if (!isLessonSearchActive) return;
-
-    lessonRepository
-      .findByTitlePrefix(normalizedLessonSearchText)
-      .then((items) => {
-        if (requestId === searchLessonLoadRequestId.current) {
-          setSearchLessonResult({
-            lessons: items,
-            query: normalizedLessonSearchText,
-          });
-        }
-      })
-      .catch((error) => {
-        console.warn("Failed to search calendar lessons", error);
-      });
-  }, [isLessonSearchActive, normalizedLessonSearchText]);
-
-  const lessonsByDate = useMemo(() => groupLessonsByDate(lessons), [lessons]);
-  const agendaSections = useMemo(
-    () =>
-      buildAgendaSections(
-        agendaDates,
-        lessonsByDate,
-        mode === "agenda" ? currentToday : undefined,
-    ),
-    [agendaDates, currentToday, lessonsByDate, mode],
-  );
-  const searchLessons = useMemo(
-    () =>
-      isLessonSearchActive &&
-      searchLessonResult?.query === normalizedLessonSearchText
-        ? searchLessonResult.lessons
-        : [],
-    [isLessonSearchActive, normalizedLessonSearchText, searchLessonResult],
-  );
-  const searchLessonsByDate = useMemo(
-    () => groupLessonsByDate(searchLessons),
-    [searchLessons],
-  );
-  const searchAgendaDates = useMemo(
-    () => getLessonDateTexts(searchLessons),
-    [searchLessons],
-  );
-  const searchAgendaSections = useMemo(
-    () => buildAgendaSections(searchAgendaDates, searchLessonsByDate),
-    [searchAgendaDates, searchLessonsByDate],
-  );
-  const searchAgendaSelectedDate =
-    searchAgendaSections[0]?.dateText ?? selectedDate;
-  const searchEmptyDescription = isLessonSearchActive
-    ? "换个课程开头试试。"
-    : "输入课程开头查看结果。";
-  const searchEmptyTitle = isLessonSearchActive ? "没有匹配课程" : "搜索课程";
+  const { agendaSections, lessons, lessonsByDate, setLessons } =
+    useCalendarData({
+      agendaRange,
+      currentToday,
+      mode,
+      visibleMonth,
+      visibleYear,
+    });
+  const {
+    agendaSections: searchAgendaSections,
+    agendaSelectedDate: searchAgendaSelectedDate,
+    emptyDescription: searchEmptyDescription,
+    emptyTitle: searchEmptyTitle,
+  } = useLessonSearch({
+    isVisible: isLessonSearchMode,
+    searchText: lessonSearchText,
+    selectedDate,
+  });
 
   useEffect(() => {
     return () => {
@@ -745,7 +629,7 @@ export function CalendarScreen() {
         selectedDate: dateText,
       });
     },
-    [currentToday, lessons, openAgendaAtDate],
+    [currentToday, lessons, openAgendaAtDate, setLessons],
   );
 
   const selectMonth = useCallback(

@@ -133,6 +133,29 @@ export function groupLessonsByDate(lessons: Lesson[]) {
   return grouped;
 }
 
+export function mergeLessonsForRange(
+  currentLessons: Lesson[],
+  rangeLessons: Lesson[],
+  range: DateRange,
+) {
+  const merged = new Map<string, Lesson>();
+
+  for (const lesson of currentLessons) {
+    if (lesson.dateText < range.start || lesson.dateText > range.end) {
+      merged.set(lesson.id, lesson);
+    }
+  }
+
+  for (const lesson of rangeLessons) {
+    merged.set(lesson.id, lesson);
+  }
+
+  return Array.from(merged.values()).sort((a, b) => {
+    const dateOrder = a.dateText.localeCompare(b.dateText);
+    return dateOrder === 0 ? a.startAt.localeCompare(b.startAt) : dateOrder;
+  });
+}
+
 export function buildMonthCells(
   month: string,
   selectedDate: string,

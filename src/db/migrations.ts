@@ -58,6 +58,8 @@ CREATE INDEX IF NOT EXISTS idx_lesson_date_text ON lesson(date_text);
 CREATE INDEX IF NOT EXISTS idx_lesson_start_at ON lesson(start_at);
 CREATE INDEX IF NOT EXISTS idx_lesson_status ON lesson(status);
 CREATE INDEX IF NOT EXISTS idx_lesson_import_batch_id ON lesson(import_batch_id);
+CREATE INDEX IF NOT EXISTS idx_lesson_title ON lesson(title);
+CREATE INDEX IF NOT EXISTS idx_lesson_student_names ON lesson(student_names);
 `;
 
 export const defaultSettings = [
@@ -93,6 +95,15 @@ const migrations: Migration[] = [
          WHERE status = 'absent'`,
         [now, now]
       );
+    }
+  },
+  {
+    version: 3,
+    async up(db) {
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_lesson_title ON lesson(title);
+        CREATE INDEX IF NOT EXISTS idx_lesson_student_names ON lesson(student_names);
+      `);
     }
   }
 ];

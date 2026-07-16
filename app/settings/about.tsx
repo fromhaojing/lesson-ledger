@@ -1,3 +1,3 @@
-import { AboutSettingsScreen } from "@/screens/settings-screen";
+import { AboutSettingsScreen } from "@/screens/settings/about-settings-screen";
 
 export default AboutSettingsScreen;

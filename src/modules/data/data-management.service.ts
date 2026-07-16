@@ -38,6 +38,8 @@ type SettingRow = {
   value: string;
 };
 
+const EXPORT_FILE_CLEANUP_DELAY_MS = 60 * 1000;
+
 export async function getLocalDataSize() {
   const fileSize = await getDatabaseFileSize();
   if (fileSize > 0) return fileSize;
@@ -64,14 +66,22 @@ export async function exportDataToExcel() {
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(settings.map((row) => ({ 设置项: row.key, 值: row.value }))), "设置");
 
   const base64 = XLSX.write(workbook, { bookType: "xlsx", type: "base64" }) as string;
-  const path = `${FileSystem.cacheDirectory}课时记-数据导出-${timestamp()}.xlsx`;
+  const exportDirectory = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+  if (!exportDirectory) {
+    throw new Error("当前设备没有可用的导出目录。");
+  }
+  const path = `${exportDirectory}课时记-数据导出-${timestamp()}.xlsx`;
   await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
 
   if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(path, {
-      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      UTI: "org.openxmlformats.spreadsheetml.sheet"
-    });
+    try {
+      await Sharing.shareAsync(path, {
+        mimeType: "application/vnd.openxmlformats.spreadsheetml.sheet",
+        UTI: "org.openxmlformats.spreadsheetml.sheet"
+      });
+    } finally {
+      scheduleExportFileCleanup(path);
+    }
   }
 
   return path;
@@ -108,6 +118,14 @@ async function clearExportCache() {
       .filter((filename) => filename.startsWith("课时记-数据导出-") && filename.endsWith(".xlsx"))
       .map((filename) => FileSystem.deleteAsync(`${FileSystem.cacheDirectory}${filename}`, { idempotent: true }))
   );
+}
+
+function scheduleExportFileCleanup(path: string) {
+  setTimeout(() => {
+    FileSystem.deleteAsync(path, { idempotent: true }).catch(() => {
+      // The file may already be gone, or the OS may still hold it briefly after sharing.
+    });
+  }, EXPORT_FILE_CLEANUP_DELAY_MS);
 }
 
 function toExportLessonRow(row: LessonExportRow): ExportLessonRow {

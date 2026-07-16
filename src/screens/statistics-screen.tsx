@@ -1,28 +1,24 @@
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
-import { BarChart } from "echarts/charts";
-import { GridComponent } from "echarts/components";
-import * as echarts from "echarts/core";
-import type { ECharts, EChartsCoreOption } from "echarts/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { EChartsCoreOption } from "echarts/core";
+import { useCallback, useState } from "react";
 import { Text, useWindowDimensions, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import SvgChart, { SVGRenderer } from "@wuba/react-native-echarts/svgChart";
 import { useFocusEffect } from "expo-router";
 
+import { EChart } from "@/components/e-chart";
 import { EmptyState } from "@/components/empty-state";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll-view";
 import {
   getRangeStatistics,
   type Statistics,
 } from "@/modules/statistics/statistics.service";
+import { useStudentChart } from "@/screens/statistics/use-student-chart";
 import { useTheme } from "@/theme";
 import { monthRange } from "@/utils/date";
 import { formatMoney } from "@/utils/money";
 
 dayjs.locale("zh-cn");
-
-echarts.use([SVGRenderer, BarChart, GridComponent]);
 
 export function StatisticsScreen() {
   const theme = useTheme();
@@ -43,29 +39,7 @@ export function StatisticsScreen() {
     }, [load]),
   );
 
-  const studentChartRows = useMemo(
-    () => stats?.byStudent.slice(0, 10) ?? [],
-    [stats?.byStudent],
-  );
-  const studentChartHeight = Math.max(330, studentChartRows.length * 48 + 104);
-
-  const studentOption = useMemo(
-    () =>
-      buildStudentOption({
-        axisColor: theme.colors.muted,
-        barColor: theme.colors.purple,
-        data: studentChartRows,
-        lineColor: theme.colors.line,
-        textColor: theme.colors.text,
-      }),
-    [
-      studentChartRows,
-      theme.colors.line,
-      theme.colors.muted,
-      theme.colors.purple,
-      theme.colors.text,
-    ],
-  );
+  const studentChart = useStudentChart(stats);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -103,8 +77,8 @@ export function StatisticsScreen() {
         <ChartCard
           empty="这个日期范围内确认课程后，这里会显示学生参与课程排行。"
           hasData={(stats?.byStudent.length ?? 0) > 0}
-          height={studentChartHeight}
-          option={studentOption}
+          height={studentChart.height}
+          option={studentChart.option}
           title="学生课次排行"
           width={chartWidth}
         />
@@ -235,41 +209,6 @@ function ChartCard({
       </View>
     </View>
   );
-}
-
-function EChart({
-  height,
-  option,
-  themeName,
-  width,
-}: {
-  height: number;
-  option: EChartsCoreOption;
-  themeName: string;
-  width: number;
-}) {
-  const chartRef = useRef<any>(null);
-  const chartInstanceRef = useRef<ECharts | null>(null);
-
-  useEffect(() => {
-    if (!chartRef.current) return;
-
-    chartInstanceRef.current?.dispose();
-    const chart = echarts.init(chartRef.current, themeName, {
-      height,
-      renderer: "svg",
-      width,
-    });
-    chart.setOption(option, true);
-    chartInstanceRef.current = chart;
-
-    return () => {
-      chartInstanceRef.current?.dispose();
-      chartInstanceRef.current = null;
-    };
-  }, [height, option, themeName, width]);
-
-  return <SvgChart ref={chartRef} handleGesture style={{ width, height }} />;
 }
 
 function DateRangePicker({
@@ -521,63 +460,6 @@ function StatsList({
       )}
     </View>
   );
-}
-
-function buildStudentOption({
-  axisColor,
-  barColor,
-  data,
-  lineColor,
-  textColor,
-}: {
-  axisColor: string;
-  barColor: string;
-  data: Statistics["byStudent"];
-  lineColor: string;
-  textColor: string;
-}): EChartsCoreOption {
-  return {
-    color: [barColor],
-    grid: { bottom: 34, left: 22, right: 52, top: 22, containLabel: true },
-    xAxis: {
-      type: "value",
-      minInterval: 1,
-      axisLabel: { color: axisColor, fontSize: 12 },
-      axisLine: { lineStyle: { color: lineColor } },
-      splitLine: { lineStyle: { color: lineColor, type: "dashed" } },
-    },
-    yAxis: {
-      type: "category",
-      data: data.map((item) => item.name),
-      inverse: true,
-      axisLabel: {
-        color: textColor,
-        fontSize: 13,
-        fontWeight: 600,
-        width: 82,
-        overflow: "truncate",
-      },
-      axisLine: { lineStyle: { color: lineColor } },
-      axisTick: { show: false },
-    },
-    series: [
-      {
-        type: "bar",
-        barCategoryGap: "42%",
-        barMaxWidth: 18,
-        itemStyle: { borderRadius: [0, 9, 9, 0], color: barColor },
-        label: {
-          show: true,
-          position: "right",
-          color: axisColor,
-          fontSize: 12,
-          distance: 10,
-          formatter: "{c} 节",
-        },
-        data: data.map((item) => item.count),
-      },
-    ],
-  };
 }
 
 function formatDateRange(startDate: string, endDate: string) {

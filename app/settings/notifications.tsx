@@ -1,3 +1,3 @@
-import { NotificationSettingsScreen } from "@/screens/settings-screen";
+import { NotificationSettingsScreen } from "@/screens/settings/notification-settings-screen";
 
 export default NotificationSettingsScreen;

@@ -24,6 +24,11 @@
     "android": {
       "package": "com.lishuo.lesson",
       "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#F7FAFC"
@@ -47,7 +52,6 @@
           }
         }
       ],
-      "expo-dev-client",
       [
         "expo-notifications",
         {

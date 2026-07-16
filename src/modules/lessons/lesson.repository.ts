@@ -124,17 +124,22 @@ export const lessonRepository = {
     return rows.map(toLesson);
   },
 
-  async findByTitlePrefix(prefix: string) {
+  async findBySearchPrefix(prefix: string) {
     const searchPrefix = prefix.trim();
     if (!searchPrefix) return [];
 
     const db = await getDatabase();
+    const escapedPrefix = escapeLikePattern(searchPrefix);
     const rows = await db.getAllAsync<LessonRow>(
       `SELECT * FROM lesson
-       WHERE ltrim(title) LIKE ? ESCAPE '\\'
-         AND deleted_at IS NULL
+       WHERE deleted_at IS NULL
+         AND (
+           title LIKE ? ESCAPE '\\'
+           OR student_names LIKE ? ESCAPE '\\'
+           OR student_names LIKE ? ESCAPE '\\'
+         )
        ORDER BY date_text ASC, start_at ASC`,
-      [`${escapeLikePattern(searchPrefix)}%`]
+      [`${escapedPrefix}%`, `["${escapedPrefix}%`, `%","${escapedPrefix}%`]
     );
     return rows.map(toLesson);
   },
