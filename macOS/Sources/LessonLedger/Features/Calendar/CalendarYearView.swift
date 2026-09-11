@@ -279,6 +279,7 @@ private final class CalendarYearCell: NSTableCellView {
     private var create: ((Date) -> Void)?
     private var pressed: Hit?
     private var tracking: NSTrackingArea?
+    private let clipboardOwner = UUID()
     private var accessibilityItems: [CalendarCellAccessibilityElement]?
     override var isFlipped: Bool { true }
 
@@ -363,15 +364,23 @@ private final class CalendarYearCell: NSTableCellView {
     override func mouseMoved(with event: NSEvent) {
         let value: String?
         switch hit(at: convert(event.locationInWindow, from: nil)) {
-        case .month(let m): value = "查看\(LedgerDate.month(months[m].date))"
+        case .month(let m):
+            value = "查看\(LedgerDate.month(months[m].date))"
+            CalendarClipboard.shared.leave(owner: clipboardOwner)
         case .day(let m, let d):
             let day = months[m].days[d]
             value = "\(day.info.accessibility)，\(day.count) 节课程"
-        default: value = nil
+            CalendarClipboard.shared.hover(owner: clipboardOwner, target: .day(day.info.date))
+        default:
+            value = nil
+            CalendarClipboard.shared.leave(owner: clipboardOwner)
         }
         if toolTip != value { toolTip = value }
     }
-    override func mouseExited(with event: NSEvent) { toolTip = nil }
+    override func mouseExited(with event: NSEvent) {
+        toolTip = nil
+        CalendarClipboard.shared.leave(owner: clipboardOwner)
+    }
     override func mouseDown(with event: NSEvent) { pressed = hit(at: convert(event.locationInWindow, from: nil)) }
     override func mouseUp(with event: NSEvent) {
         defer { pressed = nil }
@@ -387,6 +396,7 @@ private final class CalendarYearCell: NSTableCellView {
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let target = hit(at: convert(event.locationInWindow, from: nil)) else { return nil }
         let menu = NSMenu()
+        menu.autoenablesItems = false
         switch target {
         case .month(let m):
             let date = months[m].date
@@ -395,6 +405,7 @@ private final class CalendarYearCell: NSTableCellView {
             let date = months[m].days[d].info.date
             menu.addItem(CalendarActionMenuItem(title: "查看当天课程") { [weak self] in self?.openDay?(date) })
             menu.addItem(CalendarActionMenuItem(title: "新建课程…") { [weak self] in self?.create?(date) })
+            menu.addItem(CalendarClipboard.shared.pasteMenuItem(at: .day(date)))
         }
         return menu
     }

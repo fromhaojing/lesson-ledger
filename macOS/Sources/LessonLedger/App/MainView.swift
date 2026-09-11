@@ -106,6 +106,7 @@ struct MainView: View {
                             create: { editor = EditorRequest(date: $0) },
                             createTimed: { editor = EditorRequest(date: $0, startAtSelectedTime: true) },
                             moveToTime: { store.reschedule($0, to: $1, keepingTime: false) },
+                            pasteCourse: { store.pasteCourse($0, at: $1) },
                             edit: { editor = EditorRequest(lesson: $0, date: $0.start) },
                             confirm: { confirmation = $0 }, cancel: { cancelTarget = $0 }, remove: { deleteTarget = $0 }
                         )

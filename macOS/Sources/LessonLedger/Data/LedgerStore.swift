@@ -65,6 +65,9 @@ import UniformTypeIdentifiers
     func save(_ draft: LessonDraft, editingID: String?) -> Bool {
         perform { try requireDatabase().save(draft.validated(), editingID: editingID) }
     }
+    func pasteCourse(_ course: CalendarCopiedCourse, at target: CalendarPasteTarget) -> Bool {
+        perform { try requireDatabase().save(course.makeLesson(at: target)) }
+    }
     @discardableResult func reschedule(_ id: String, to date: Date, keepingTime: Bool = true) -> Bool {
         perform {
             let db = try requireDatabase()

@@ -56,6 +56,8 @@ ARCHES="arm64 x86_64" MARKETING_VERSION=2.0.0 BUILD_NUMBER=10 ./macOS/scripts/bu
 
 `⌘N` 新建课程，`⇧⌘I` 导入，`⇧⌘E` 导出，`⌘,` 打开设置。右键课程可编辑、确认、取消或删除；待确认表格支持 Command / Shift 多选。
 
+日历中，鼠标悬停或点击课程后可用 `⌘C` 复制，也可右键选择「复制课程」。将鼠标移到目标位置后按 `⌘V`，或右键选择「粘贴课程」：日、周视图按指向时间粘贴，月、年视图按指向日期并保留原上课时间。每次粘贴都会新建独立课程，保留名称、学生、时长、默认金额与备注；状态按新日期变为未开始或待确认，不复制已确认收入或取消状态。输入框内的复制、粘贴仍按普通文本处理。
+
 ## 本地数据与迁移
 
 正式数据库位于：
@@ -80,7 +82,19 @@ macOS/
   Info.plist                macOS 应用标识与版本
   AppIcon.png               应用图标源文件
   Sources/CSQLite/           系统 SQLite 模块
-  Sources/LessonLedger/      原生 UI、数据、通知、Excel 文件读写
+  Sources/LessonLedger/
+    App/                    应用入口、主窗口与导航
+    Models/                 课程模型、状态与日期基础类型
+    Data/                   SQLite、账本状态、通知与 Excel 文件读写
+    Features/
+      Calendar/             日历视图、日期缓存、拖动与复制粘贴
+      Lessons/              课程详情、编辑、确认与导入预览
+      Statistics/           收入趋势与学生课次统计
+      Settings/             应用设置
+    Shared/
+      Components/           通用日期选择器
+      Theme/                主题与配色
+    Resources/              数据库结构、SheetJS 与第三方许可证
   Tests/LessonLedgerTests/   状态迁移、事务、备份与 Excel 测试
   scripts/                  测试、构建与运行脚本
 outputs/                    原有 Excel 导入模板

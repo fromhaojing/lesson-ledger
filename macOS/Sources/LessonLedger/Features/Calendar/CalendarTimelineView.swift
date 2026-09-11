@@ -59,14 +59,12 @@ struct CalendarTimelineView: View {
                                         .id(hour)
                                 }
                             }
-                            ForEach(displayedDays, id: \.self) { day in
-                                TimelineDayColumn(
-                                    day: day, entries: index.timeline(on: day), width: columnWidth,
-                                    hourHeight: hourHeight, isToday: day == today, isActive: isActive,
-                                    create: create, move: move, edit: edit,
-                                    confirm: confirm, cancel: cancel, remove: remove
-                                )
-                            }
+                            TimelineCourseGrid(
+                                days: displayedDays, index: index, columnWidth: columnWidth,
+                                hourHeight: hourHeight, today: today, isActive: isActive,
+                                create: create, move: move, edit: edit,
+                                confirm: confirm, cancel: cancel, remove: remove
+                            )
                         }.padding(.top, 8)
                     }
                     .onAppear {
@@ -90,12 +88,12 @@ struct CalendarTimelineView: View {
     }
 }
 
-private struct TimelineDayColumn: View {
-    var day: Date
-    var entries: [CourseCalendar.TimelinePlacement]
-    var width: CGFloat
+private struct TimelineCourseGrid: View {
+    var days: [Date]
+    var index: CalendarLessonIndex
+    var columnWidth: CGFloat
     var hourHeight: CGFloat
-    var isToday: Bool
+    var today: Date
     var isActive: Bool
     var create: (Date) -> Void
     var move: (String, Date) -> Bool
@@ -103,7 +101,131 @@ private struct TimelineDayColumn: View {
     var confirm: (Lesson) -> Void
     var cancel: (Lesson) -> Void
     var remove: (Lesson) -> Void
-    @State private var isDropTarget = false
+    @State private var drag: CardDrag?
+    @State private var pendingMoves = TimelinePendingMoves()
+    @GestureState private var gestureActive = false
+    @Namespace private var coordinateSpace
+
+    private struct CardDrag {
+        var lesson: Lesson
+        var translation: CGSize
+        var target: Date?
+    }
+
+    private struct Card: Identifiable {
+        var entry: CourseCalendar.TimelinePlacement
+        var frame: CGRect
+        var id: String { entry.id }
+    }
+
+    private var width: CGFloat { columnWidth * CGFloat(days.count) }
+    private var displayedLessons: [Lesson] {
+        pendingMoves.applying(to: days.flatMap { index.days[$0] ?? [] }, revision: index.revision)
+    }
+
+    private func card(for entry: CourseCalendar.TimelinePlacement, dayIndex: Int) -> Card {
+        Card(entry: entry, frame: TimelineDragPlacement.frame(for: entry, dayIndex: dayIndex,
+            columnWidth: columnWidth, hourHeight: hourHeight))
+    }
+
+    private var cards: [Card] {
+        let displayed = displayedLessons
+        return days.enumerated().flatMap { dayIndex, day in
+            let entries = pendingMoves.hasMoves(for: index.revision)
+                ? CourseCalendar.timeline(displayed, on: day) : index.timeline(on: day)
+            return entries.map { card(for: $0, dayIndex: dayIndex) }
+        }
+    }
+
+    private var dropPreview: Card? {
+        guard let drag, let target = drag.target,
+              let dayIndex = days.firstIndex(where: { Calendar.current.isDate($0, inSameDayAs: target) }),
+              let moved = try? CourseCalendar.moving(drag.lesson, startingAt: target) else { return nil }
+        let projected = displayedLessons.filter { $0.id != moved.id } + [moved]
+        guard let entry = CourseCalendar.timeline(projected, on: days[dayIndex]).first(where: { $0.id == moved.id }) else { return nil }
+        return card(for: entry, dayIndex: dayIndex)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            HStack(spacing: 0) {
+                ForEach(days, id: \.self) { day in
+                    TimelineDayBackground(day: day, width: columnWidth, hourHeight: hourHeight,
+                                          isToday: day == today, isActive: isActive, create: create)
+                }
+            }
+            if let preview = dropPreview {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(.tint.opacity(0.14))
+                    .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(.tint, lineWidth: 2) }
+                    .overlay(alignment: .topLeading) {
+                        Text(preview.entry.lesson.timeText)
+                            .font(.system(size: 10, weight: .semibold)).monospacedDigit()
+                            .padding(.horizontal, 4).padding(.vertical, 2)
+                            .foregroundStyle(.white).background(.tint, in: RoundedRectangle(cornerRadius: 3))
+                            .offset(y: -18)
+                    }
+                    .frame(width: preview.frame.width, height: preview.frame.height)
+                    .offset(x: preview.frame.minX, y: preview.frame.minY)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .zIndex(2)
+            }
+            // One stable view per course across every day column. Moving across a
+            // day boundary never removes the source view or creates a drag copy.
+            ForEach(cards) { card in
+                let translation = drag?.lesson.id == card.id ? drag!.translation : .zero
+                CalendarLessonItem(
+                    lesson: card.entry.lesson, edit: edit, confirm: confirm, cancel: cancel, remove: remove,
+                    isTimeline: true, showsTime: card.frame.height >= 42
+                )
+                .frame(width: card.frame.width, height: card.frame.height)
+                .offset(x: card.frame.minX + translation.width, y: card.frame.minY + translation.height)
+                .zIndex(drag?.lesson.id == card.id ? 1 : 0)
+                .highPriorityGesture(
+                    DragGesture(minimumDistance: 4, coordinateSpace: .named(coordinateSpace))
+                        .updating($gestureActive) { _, active, _ in active = true }
+                        .onChanged { value in
+                            guard isActive, card.entry.lesson.status.isOpen else { return }
+                            let lesson = drag?.lesson ?? card.entry.lesson
+                            let target = TimelineDragPlacement.destination(for: lesson, translation: value.translation,
+                                pointer: value.location, days: days, columnWidth: columnWidth, hourHeight: hourHeight)
+                            drag = CardDrag(lesson: lesson, translation: value.translation, target: target)
+                        }
+                        .onEnded { value in finishDrag(value) },
+                    including: isActive && card.entry.lesson.status.isOpen ? .all : .subviews
+                )
+            }
+        }
+        .frame(width: width, height: hourHeight * 24)
+        .coordinateSpace(name: coordinateSpace)
+        .transaction { $0.animation = nil }
+        .onChange(of: gestureActive) { _, active in if !active { drag = nil } }
+        .onChange(of: days) { _, _ in drag = nil }
+        .onChange(of: isActive) { _, active in if !active { drag = nil } }
+        .onDisappear { drag = nil }
+    }
+
+    private func finishDrag(_ value: DragGesture.Value) {
+        defer { drag = nil }
+        guard isActive, let drag,
+              let target = TimelineDragPlacement.destination(for: drag.lesson, translation: value.translation,
+                    pointer: value.location, days: days, columnWidth: columnWidth, hourHeight: hourHeight),
+              let moved = try? CourseCalendar.moving(drag.lesson, startingAt: target) else { return }
+        guard moved.start != drag.lesson.start, move(moved.id, moved.start) else { return }
+        // The store writes synchronously, while the shared search/calendar index
+        // rebuilds asynchronously. Keep the committed position until it catches up.
+        pendingMoves.record(moved, revision: index.revision)
+    }
+}
+
+private struct TimelineDayBackground: View {
+    var day: Date
+    var width: CGFloat
+    var hourHeight: CGFloat
+    var isToday: Bool
+    var isActive: Bool
+    var create: (Date) -> Void
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -125,31 +247,14 @@ private struct TimelineDayColumn: View {
                 context.stroke(hours, with: .color(.primary.opacity(0.1)), lineWidth: 1)
                 context.stroke(halves, with: .color(.primary.opacity(0.05)), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
             }.allowsHitTesting(false)
-            ForEach(entries) { entry in
-                let laneWidth = width / CGFloat(entry.columnCount)
-                let cardHeight = max(16, CGFloat(entry.endMinute - entry.startMinute) / 60 * hourHeight - 2)
-                CalendarLessonItem(
-                    lesson: entry.lesson, edit: edit, confirm: confirm, cancel: cancel, remove: remove,
-                    isTimeline: true, showsTime: cardHeight >= 42
-                )
-                .frame(width: max(1, laneWidth - 5), height: cardHeight)
-                .offset(x: CGFloat(entry.column) * laneWidth + 3, y: CGFloat(entry.startMinute) / 60 * hourHeight)
-            }
         }
         .frame(width: width, height: hourHeight * 24)
         .background(Calendar.current.isDateInWeekend(day) ? Color.primary.opacity(0.02) : Color.clear)
-        .overlay { if isDropTarget { Rectangle().fill(.blue.opacity(0.05)).allowsHitTesting(false) } }
         .overlay(alignment: .topLeading) {
             if isToday && isActive {
                 CalendarCurrentTimeLine(day: day, width: width, hourHeight: hourHeight)
             }
         }
-        .dropDestination(for: String.self) { values, location in
-            guard values.count == 1, let value = values.first,
-                  value.hasPrefix(CourseCalendar.dragPrefix) else { return false }
-            let id = String(value.dropFirst(CourseCalendar.dragPrefix.count))
-            return move(id, CourseCalendar.time(on: day, minute: Double(location.y / hourHeight) * 60))
-        } isTargeted: { isDropTarget = $0 }
         .clipped()
     }
 }
@@ -184,6 +289,11 @@ private struct TimelineTimeSlots: View {
     var hourHeight: CGFloat
     var create: (Date) -> Void
     @State private var selectedMinute = 9 * 60
+    @State private var clipboardOwner = UUID()
+    @ObservedObject private var clipboard = CalendarClipboard.shared
+    private var pasteTarget: CalendarPasteTarget {
+        .time(CourseCalendar.time(on: day, minute: Double(selectedMinute)))
+    }
 
     var body: some View {
         Rectangle().fill(Color.clear)
@@ -195,10 +305,16 @@ private struct TimelineTimeSlots: View {
                 if case .active(let location) = phase {
                     let minute = min(1425, max(0, Int(location.y / hourHeight * 60 / 15) * 15))
                     if selectedMinute != minute { selectedMinute = minute }
+                    clipboard.hover(owner: clipboardOwner,
+                                    target: .time(CourseCalendar.time(on: day, minute: Double(minute))))
+                } else {
+                    clipboard.leave(owner: clipboardOwner)
                 }
             }
+            .onDisappear { clipboard.leave(owner: clipboardOwner) }
             .contextMenu {
                 Button("新建课程…") { create(CourseCalendar.time(on: day, minute: Double(selectedMinute))) }
+                Button("粘贴课程") { clipboard.paste(at: pasteTarget) }.disabled(!clipboard.canPaste)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(LedgerDate.day(day))，课程时间轴")

@@ -30,6 +30,7 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
     private var dropDay: Int?
     private var popover: NSPopover?
     private var tracking: NSTrackingArea?
+    private let clipboardOwner = UUID()
     private let calendar = Calendar.current
     override var isFlipped: Bool { true }
 
@@ -98,12 +99,11 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
                 let lesson = day.lessons[index]
                 let color = statusColor(lesson.status)
                 color.withAlphaComponent(0.09).setFill(); NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4).fill()
-                color.setFill(); NSBezierPath(roundedRect: NSRect(x: rect.minX + 5, y: rect.minY + 2, width: 3, height: 14), xRadius: 2, yRadius: 2).fill()
                 let time = LedgerDate.time(lesson.start)
                 let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular)
                 let timeWidth = textWidth(time, font: timeFont)
                 drawText(time, rect: NSRect(x: rect.maxX - timeWidth - 5, y: rect.minY + 2, width: timeWidth, height: 14), font: timeFont, color: .secondaryLabelColor)
-                drawText(lesson.title, rect: NSRect(x: rect.minX + 12, y: rect.minY + 1, width: max(0, rect.width - timeWidth - 22), height: 16),
+                drawText(lesson.title, rect: NSRect(x: rect.minX + 5, y: rect.minY + 1, width: max(0, rect.width - timeWidth - 15), height: 16),
                          font: .systemFont(ofSize: 11, weight: .medium), color: lesson.status == .cancelled ? .secondaryLabelColor : .labelColor,
                          strike: lesson.status == .cancelled)
             }
@@ -150,12 +150,15 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
     private func activate(_ hit: Hit) {
         guard let content else { return }
         switch hit {
-        case .day(let day): content.select(days[day].info.date)
+        case .day(let day):
+            CalendarClipboard.shared.selectTarget(.day(days[day].info.date))
+            content.select(days[day].info.date)
         case .more(let day):
             present(CalendarDayAgenda(date: days[day].info.date, lessons: days[day].lessons, actions: content),
                     at: days[day].moreRect ?? days[day].rect, size: NSSize(width: 320, height: 380))
         case .lesson(let day, let index):
             let lesson = days[day].lessons[index]
+            CalendarClipboard.shared.select(lesson, target: .day(days[day].info.date))
             present(LessonDetailView(lesson: lesson, edit: { [weak self] in self?.popover?.close(); content.edit(lesson) },
                                     confirm: { [weak self] in self?.popover?.close(); content.confirm(lesson) },
                                     cancel: { [weak self] in self?.popover?.close(); content.cancel(lesson) },
@@ -174,11 +177,14 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let content, let hit = hit(at: convert(event.locationInWindow, from: nil)) else { return nil }
         let menu = NSMenu()
+        menu.autoenablesItems = false
         func add(_ title: String, _ action: @escaping () -> Void) { menu.addItem(CalendarActionMenuItem(title: title, action: action)) }
         switch hit {
         case .lesson(let day, let index):
             let lesson = days[day].lessons[index]
             add("查看课程") { [weak self] in self?.activate(hit) }
+            add("复制课程") { CalendarClipboard.shared.copy(lesson) }
+            menu.addItem(CalendarClipboard.shared.pasteMenuItem(at: .day(days[day].info.date)))
             if lesson.status.isOpen {
                 add("编辑课程…") { content.edit(lesson) }
                 add("确认金额…") { content.confirm(lesson) }
@@ -189,6 +195,7 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
         case .day(let day), .more(let day):
             let date = days[day].info.date
             add("新建课程…") { content.select(date); content.create(date) }
+            menu.addItem(CalendarClipboard.shared.pasteMenuItem(at: .day(date)))
             if !days[day].lessons.isEmpty { add("查看当天全部课程") { [weak self] in self?.activate(.more(day)) } }
         }
         return menu
@@ -244,13 +251,26 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
     override func mouseMoved(with event: NSEvent) {
         let text: String?
         switch hit(at: convert(event.locationInWindow, from: nil)) {
-        case .lesson(let day, let index): let lesson = days[day].lessons[index]; text = "\(lesson.title) · \(lesson.timeText) · \(lesson.status.title)"
-        case .more(let day): text = "查看当天全部 \(days[day].lessons.count) 节课程"
-        default: text = nil
+        case .lesson(let day, let index):
+            let lesson = days[day].lessons[index]
+            text = "\(lesson.title) · \(lesson.timeText) · \(lesson.status.title)"
+            CalendarClipboard.shared.hover(owner: clipboardOwner, lesson: lesson, target: .day(days[day].info.date))
+        case .more(let day):
+            text = "查看当天全部 \(days[day].lessons.count) 节课程"
+            CalendarClipboard.shared.hover(owner: clipboardOwner, target: .day(days[day].info.date))
+        case .day(let day):
+            text = nil
+            CalendarClipboard.shared.hover(owner: clipboardOwner, target: .day(days[day].info.date))
+        default:
+            text = nil
+            CalendarClipboard.shared.leave(owner: clipboardOwner)
         }
         if toolTip != text { toolTip = text }
     }
-    override func mouseExited(with event: NSEvent) { toolTip = nil }
+    override func mouseExited(with event: NSEvent) {
+        toolTip = nil
+        CalendarClipboard.shared.leave(owner: clipboardOwner)
+    }
 
     override func accessibilityChildren() -> [Any]? { axElements }
     private func rebuildAccessibility() {

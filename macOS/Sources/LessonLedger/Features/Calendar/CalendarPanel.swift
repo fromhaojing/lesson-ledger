@@ -12,6 +12,7 @@ struct CalendarPanel: View {
     var create: (Date) -> Void
     var createTimed: (Date) -> Void
     var moveToTime: (String, Date) -> Bool
+    var pasteCourse: (CalendarCopiedCourse, CalendarPasteTarget) -> Bool
     var edit: (Lesson) -> Void
     var confirm: (Lesson) -> Void
     var cancel: (Lesson) -> Void
@@ -50,10 +51,17 @@ struct CalendarPanel: View {
             footer
         }
         .background(Color(nsColor: .controlBackgroundColor))
-        .onChange(of: lessons) { _, _ in indexRequestID = UUID() }
+        .background(CalendarClipboardHost().frame(width: 0, height: 0))
+        .onAppear { CalendarClipboard.shared.activate(fallback: .day(date), paste: pasteCourse) }
+        .onDisappear { CalendarClipboard.shared.deactivate() }
+        .onChange(of: lessons) { _, next in
+            indexRequestID = UUID()
+            CalendarClipboard.shared.refresh(next)
+        }
         .onChange(of: search) { _, _ in indexRequestID = UUID() }
         .task(id: indexRequestID) { await rebuildIndex() }
         .onChange(of: mode, initial: true) { previous, next in
+            CalendarClipboard.shared.clearHover()
             mountedModes.insert(next)
             if previous == .month, next != .month,
                !calendar.isDate(date, equalTo: visibleMonth, toGranularity: .month) {
@@ -72,6 +80,7 @@ struct CalendarPanel: View {
             if mode == .year { prefetchCalendarDates() }
         }
         .onChange(of: date) { _, _ in
+            CalendarClipboard.shared.updateFallback(.day(date))
             if mode != .month { prefetchCalendarDates() }
         }
         .onReceive(NotificationCenter.default.publisher(for: CalendarDateCache.didLoadMonths)) { notification in
@@ -698,13 +707,21 @@ struct CalendarLessonItem: View {
     var isTimeline = false
     var showsTime = true
     @State private var showDetails = false
+    @State private var clipboardOwner = UUID()
+    @ObservedObject private var clipboard = CalendarClipboard.shared
+    private var pasteTarget: CalendarPasteTarget { isTimeline ? .time(lesson.start) : .day(lesson.start) }
 
     var body: some View {
         Group {
-            if lesson.status.isOpen {
+            if lesson.status.isOpen && !isTimeline {
                 eventButton.draggable(CourseCalendar.dragPrefix + lesson.id)
             } else { eventButton }
         }
+        .onHover { hovered in
+            if hovered { clipboard.hover(owner: clipboardOwner, lesson: lesson, target: pasteTarget) }
+            else { clipboard.leave(owner: clipboardOwner) }
+        }
+        .onDisappear { clipboard.leave(owner: clipboardOwner) }
         .popover(isPresented: $showDetails, arrowEdge: .trailing) {
             LessonDetailView(
                 lesson: lesson,
@@ -716,6 +733,8 @@ struct CalendarLessonItem: View {
         }
         .contextMenu {
             Button("查看课程") { showDetails = true }
+            Button("复制课程") { clipboard.copy(lesson) }
+            Button("粘贴课程") { clipboard.paste(at: pasteTarget) }.disabled(!clipboard.canPaste)
             if lesson.status.isOpen {
                 Button("编辑课程…") { edit(lesson) }
                 Button("确认金额…") { confirm(lesson) }
@@ -727,7 +746,7 @@ struct CalendarLessonItem: View {
     }
 
     private var eventButton: some View {
-        Button { showDetails = true } label: {
+        Button { clipboard.select(lesson, target: pasteTarget); showDetails = true } label: {
             if isTimeline {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(lesson.title).font(.system(size: 12, weight: .medium))
@@ -741,13 +760,9 @@ struct CalendarLessonItem: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .foregroundStyle(lesson.status == .cancelled ? .secondary : .primary)
                 .background(lesson.status.color.opacity(0.13), in: RoundedRectangle(cornerRadius: 5))
-                .overlay(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 2).fill(lesson.status.color).frame(width: 3)
-                }
                 .clipped().contentShape(Rectangle())
             } else {
             HStack(spacing: 4) {
-                RoundedRectangle(cornerRadius: 2).fill(lesson.status.color).frame(width: 3, height: 14)
                 Text(lesson.title).fontWeight(.medium).lineLimit(1)
                     .strikethrough(lesson.status == .cancelled)
                 Spacer(minLength: 0)
