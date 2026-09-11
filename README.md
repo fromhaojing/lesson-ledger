@@ -1,48 +1,95 @@
-# 课时记
+# 钱来 · macOS
 
-本项目是一个 Expo Router 本地优先应用，用于记录课程、学生、课时金额、待确认课程和本地提醒。
+使用 SwiftUI、AppKit 和 Apple Charts 构建的本地课程账本，支持 macOS 14 及以上版本。当前分支已移除 Expo / React Native 与 iOS、Android 工程。
 
-## 架构
+## 运行
 
-- `app/`: Expo Router 路由入口，页面实现委托给 `src/screens`。
-- `src/components/`: 通用 UI 组件和日历视图子组件。
-- `src/screens/`: 主要页面和交互流程。
-- `src/modules/lessons`: SQLite 课程读写、状态迁移和导入批次写入。
-- `src/modules/imports`: Excel 解析和导入草稿缓存。
-- `src/modules/notifications`: 本地通知调度和应用角标同步。
-- `src/modules/statistics`: 按日期范围聚合统计数据。
-- `src/modules/data`: 本地数据导出、清除和缓存清理。
-- `src/db`: SQLite 连接和版本化迁移。
-- `src/utils`: 日期、金额、数字等纯工具函数。
-
-## 数据模型
-
-本地 SQLite 数据库名为 `lesson-ledger.db`，核心表包括：
-
-- `lesson`: 课程记录，状态包括 `scheduled`、`pending`、`confirmed`、`cancelled`。
-- `import_batch`: 每次 Excel 导入的文件名、行数和成功/失败统计。
-- `app_setting`: 主题、默认金额、通知等设置。
-- `schema_migrations`: 已执行迁移版本。
-
-课程状态迁移集中在 repository 层保护，已确认或已取消课程不会再次被确认或取消。
-
-## 导入与导出
-
-- 导入支持 `.xlsx` 和 `.xls`，单个文件限制为 5MB。
-- 导入预览草稿会缓存在本机 cache 中，导入完成或清除数据时会删除。
-- 导入模板可通过 `npm run build:template` 生成到 `outputs/课时记-课程导入模板.xlsx`。
-- 数据导出会生成 Excel 并调用系统分享；清除课程数据时会删除历史导出缓存。
-
-## 常用命令
+需要安装 Xcode（包含 macOS SDK）和 Python 3。不需要 Node.js、npm、CocoaPods 或额外的 Swift 包。
 
 ```bash
-npm run typecheck
-npm run lint
-npm test
-npm run build:template
-npm run ios
+# 退出旧进程、编译 release 版并重新打开应用
+./macOS/scripts/compile_and_run.sh
+
+# 只生成 release 应用
+./macOS/scripts/build-app.sh release
+
+# 编译并运行 release 版
+./macOS/scripts/compile_and_run.sh release
+
+# 提取指定版本的发布说明
+./macOS/scripts/release-notes.sh 2.0.0
+
+# 运行自动测试
+./macOS/scripts/test.sh
 ```
 
-## 隐私
+生成的应用位于 `macOS/build/钱来.app`，可以直接打开或拖入「应用程序」。构建默认使用 `release` 和当前 Mac 的 CPU 架构，并执行本机临时签名及签名校验；对外分发需另行使用 Developer ID 签名和公证。
 
-当前版本不上传课程、学生、金额或设置数据。数据存储在本机 SQLite 中，导出的 Excel 包含个人课程信息，应按敏感文件处理。Android 自动备份已关闭，避免课程数据进入系统云备份。
+`build-app.sh` 支持 `MARKETING_VERSION`（默认取 `Info.plist`）、`BUILD_NUMBER`（默认取 Git 提交数量）和 `ARCHES` 环境变量。版本覆盖只写入生成的应用，不修改源 `Info.plist`。例如构建 Apple Silicon / Intel 通用版本：
+
+```bash
+ARCHES="arm64 x86_64" MARKETING_VERSION=2.0.0 BUILD_NUMBER=10 ./macOS/scripts/build-app.sh release
+```
+
+`run.sh` 保留为 `compile_and_run.sh` 的兼容入口；两者均支持 `[debug|release] [--preview]`，默认 `release`；需要断点调试时显式传入 `debug`。一键运行会先退出正在运行的钱来，若无法退出则报错停止。版本说明维护在仓库根目录的 `CHANGELOG.md` 中。
+
+在 Xcode 中打开 `macOS/Package.swift` 可以编辑、编译和运行测试。体验完整菜单、图标与系统通知请使用脚本生成的 `.app`。
+
+需要查看带有模拟课程的界面时，运行：
+
+```bash
+./macOS/scripts/compile_and_run.sh release --preview
+```
+
+演示模式使用独立临时数据库，不读取正式课程，也不安排系统通知。
+
+## 功能
+
+- 今天：当天课程、预计收入、已确认金额。
+- 课程日历：日 / 周 / 月 / 年分段切换；日、周视图展示 24 小时时间轴，重叠课程并排排列，可双击时间格新建、拖动课程调整日期和开始时间（15 分钟对齐，保留原时长）。月视图保留长方形连续周网格和虚拟滚动，每天最多展示 3 节，超出用 `+N` 展开。年视图按年份连续向上、向下滚动并懒加载，各年展示月份网格，顶部年份和统计随滚动更新；点击月份进入月视图、点击日期进入日视图，有课程的日期显示圆点。各视图共用搜索、详情、编辑、确认、取消与删除；前后切换和回到今天按当前视图定位，已确认或已取消课程不可改期。
+- 全部课程：搜索学生与课程、状态筛选、详情、编辑、取消与删除。
+- 待确认：自动识别已结束课程、实际金额确认、按默认金额批量确认。
+- 统计：日期范围、确认收入趋势、学生课次排行和明细。
+- Excel：`.xlsx` / `.xls` 导入预览、逐行错误提示、导出和空白模板。
+- 设置：默认金额、系统/浅色/深色外观、六种主题色（薄荷绿、湖蓝、紫罗兰、暖橙、玫瑰、珊瑚红）、课程结束前后提醒。主题色沿用原版的深浅色配色，并保存到本机；首版 Mac 的粉色选项自动对应玫瑰。
+- Mac 操作：原生侧栏、表格、表单、设置窗口、文件对话框、菜单和快捷键。
+
+`⌘N` 新建课程，`⇧⌘I` 导入，`⇧⌘E` 导出，`⌘,` 打开设置。右键课程可编辑、确认、取消或删除；待确认表格支持 Command / Shift 多选。
+
+## 本地数据与迁移
+
+正式数据库位于：
+
+```text
+~/Library/Application Support/LessonLedger/lesson-ledger.db
+```
+
+沿用原应用的 `lesson`、`import_batch`、`app_setting`、`schema_migrations` 表结构。金额确认与取消在数据库层保护；已确认或已取消的课程不能再次确认、取消或编辑。删除使用 `deleted_at` 软删除。
+
+从手机端迁移课程：先在原应用导出 Excel，再在 Mac 的「文件 → 导入 Excel」中预览并导入。原导出文件中的状态、实际金额和备注会保留。导入是追加操作，不自动去重；Excel 的「设置」工作表仅供参考，不自动覆盖本机设置。
+
+完整备份使用「文件 → 备份数据库」，通过 SQLite backup API 正确包含 WAL 中的数据。手动恢复时，先退出应用，保留当前数据库及其 `-wal` / `-shm` 文件的副本并移出数据目录，再将完整备份放入该目录、命名为 `lesson-ledger.db` 后启动。不要在应用运行中直接替换数据库文件。
+
+应用不上传课程或个人信息。课程提醒需在设置中申请 macOS 通知权限；每次打开应用时更新未来 14 天内最多 50 条提醒，之后由系统发送。长时间不打开应用时不会自动续排更远的课程。
+
+## 项目结构
+
+```text
+macOS/
+  Package.swift             Swift Package 入口
+  Info.plist                macOS 应用标识与版本
+  AppIcon.png               应用图标源文件
+  Sources/CSQLite/           系统 SQLite 模块
+  Sources/LessonLedger/      原生 UI、数据、通知、Excel 文件读写
+  Tests/LessonLedgerTests/   状态迁移、事务、备份与 Excel 测试
+  scripts/                  测试、构建与运行脚本
+outputs/                    原有 Excel 导入模板
+```
+
+Excel 文件格式继续使用 SheetJS 0.18.5，通过系统 JavaScriptCore 在本机解析，无 WebView 或 JavaScript UI 运行时。完整第三方许可证位于 `macOS/Sources/LessonLedger/Resources/SheetJS-LICENSE.txt`。
+
+### 日期缓存
+
+日、周、月、年共用本地日期元数据缓存（日期排列、星期、农历），不包含课程数据、今天标记或选中状态。应用启动后在后台优先读取/生成当前月，再准备当前年及前后各两年；浏览范围外时按需补算并保存，接近边界时提前准备相邻月份/年份。首次没有缓存时先显示基础日期格，农历准备完成后再填入。
+
+缓存保存在 `~/Library/Caches/LessonLedger/CalendarDates-v1/`，按月份写入独立文件，并用历法、时区、界面语言、周起始规则和算法/系统版本隔离。读取、计算、原子写入和清理均在后台完成，损坏文件会重新生成。磁盘最多保留 240 个月份文件；缓存可删除后重建，不影响课程账本。
