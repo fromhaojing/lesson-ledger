@@ -280,6 +280,7 @@ private final class CalendarYearCell: NSTableCellView {
     private var pressed: Hit?
     private var tracking: NSTrackingArea?
     private let clipboardOwner = UUID()
+    private var previewObserver: NSObjectProtocol?
     private var accessibilityItems: [CalendarCellAccessibilityElement]?
     override var isFlipped: Bool { true }
 
@@ -287,7 +288,11 @@ private final class CalendarYearCell: NSTableCellView {
         super.init(frame: frameRect)
         wantsLayer = true; layerContentsRedrawPolicy = .onSetNeedsDisplay
         setAccessibilityElement(false)
+        previewObserver = NotificationCenter.default.addObserver(forName: CalendarClipboard.didChangePreview, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.needsDisplay = true }
+        }
     }
+    deinit { if let previewObserver { NotificationCenter.default.removeObserver(previewObserver) } }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func configure(band: CalendarYearBand, width: CGFloat, inputs: Inputs, index: CalendarLessonIndex,
@@ -326,6 +331,12 @@ private final class CalendarYearCell: NSTableCellView {
                      font: .systemFont(ofSize: 10), color: .secondaryLabelColor, alignment: .center)
             }
             for day in month.days {
+                if let target = CalendarClipboard.shared.preview?.target,
+                   Calendar.current.isDate(target.date, inSameDayAs: day.info.date) {
+                    let outline = NSBezierPath(roundedRect: day.rect.insetBy(dx: 1, dy: 0), xRadius: 4, yRadius: 4)
+                    accent.withAlphaComponent(0.15).setFill(); outline.fill()
+                    accent.setStroke(); outline.lineWidth = 2; outline.stroke()
+                }
                 let today = day.info.date == inputs.today
                 let selected = day.info.date == inputs.selectedDate
                 let circle = NSRect(x: day.rect.midX - 12, y: day.rect.minY + 1, width: 24, height: 24)
@@ -377,6 +388,7 @@ private final class CalendarYearCell: NSTableCellView {
         }
         if toolTip != value { toolTip = value }
     }
+    override func mouseEntered(with event: NSEvent) { mouseMoved(with: event) }
     override func mouseExited(with event: NSEvent) {
         toolTip = nil
         CalendarClipboard.shared.leave(owner: clipboardOwner)
@@ -407,6 +419,9 @@ private final class CalendarYearCell: NSTableCellView {
             menu.addItem(CalendarActionMenuItem(title: "新建课程…") { [weak self] in self?.create?(date) })
             menu.addItem(CalendarClipboard.shared.pasteMenuItem(at: .day(date)))
         }
+        if let item = CalendarClipboard.shared.endPastePreviewMenuItem() { menu.addItem(item) }
+        menu.addItem(.separator())
+        menu.addItem(CalendarClipboard.shared.undoMenuItem())
         return menu
     }
     override func accessibilityChildren() -> [Any]? {

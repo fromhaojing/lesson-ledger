@@ -47,7 +47,7 @@ struct SettingsView: View {
                             .accessibilityAddTraits(store.theme == theme ? [.isSelected] : [])
                         }
                     }
-                    Text("主题色用于按钮、日历选中态、图表和页面强调色，并保存在本机。")
+                    Text("主题色用于按钮、日历选中态、图表和页面强调色。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }.formStyle(.grouped).tabItem { Label("通用", systemImage: "gearshape") }
@@ -64,6 +64,7 @@ struct SettingsView: View {
                         ForEach(0...30, id: \.self) { Text("\($0) 分钟").tag(String($0)) }
                     }
                 }
+                CloudReminderSettingsSection()
                 Section("系统权限") {
                     LabeledContent("通知权限", value: store.notificationStatus)
                     Button("请求通知权限") { store.scheduleNotifications(askPermission: true) }
@@ -85,8 +86,6 @@ struct SettingsView: View {
                 }
                 Section("关于钱来") {
                     LabeledContent("版本", value: "2.0.0 · macOS 原生版")
-                    Text("使用 SwiftUI、AppKit 和 Apple Charts 构建。课程、学生、金额与设置仅保存在本机，不上传到服务器。")
-                        .font(.callout).foregroundStyle(.secondary)
                     Text("Excel 文件包含个人课程信息。导入会追加课程；完整数据库备份同时保存课程、导入批次与设置。")
                         .font(.caption).foregroundStyle(.secondary)
                 }

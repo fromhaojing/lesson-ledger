@@ -105,6 +105,7 @@ private struct TimelineCourseGrid: View {
     @State private var pendingMoves = TimelinePendingMoves()
     @GestureState private var gestureActive = false
     @Namespace private var coordinateSpace
+    @ObservedObject private var clipboard = CalendarClipboard.shared
 
     private struct CardDrag {
         var lesson: Lesson
@@ -138,9 +139,15 @@ private struct TimelineCourseGrid: View {
     }
 
     private var dropPreview: Card? {
-        guard let drag, let target = drag.target,
-              let dayIndex = days.firstIndex(where: { Calendar.current.isDate($0, inSameDayAs: target) }),
-              let moved = try? CourseCalendar.moving(drag.lesson, startingAt: target) else { return nil }
+        guard isActive else { return nil }
+        let moved: Lesson
+        if let drag {
+            guard let target = drag.target, let result = try? CourseCalendar.moving(drag.lesson, startingAt: target) else { return nil }
+            moved = result
+        } else if let preview = clipboard.preview, !preview.target.keepingTime {
+            moved = preview.lesson
+        } else { return nil }
+        guard let dayIndex = days.firstIndex(where: { Calendar.current.isDate($0, inSameDayAs: moved.start) }) else { return nil }
         let projected = displayedLessons.filter { $0.id != moved.id } + [moved]
         guard let entry = CourseCalendar.timeline(projected, on: days[dayIndex]).first(where: { $0.id == moved.id }) else { return nil }
         return card(for: entry, dayIndex: dayIndex)
@@ -315,6 +322,10 @@ private struct TimelineTimeSlots: View {
             .contextMenu {
                 Button("新建课程…") { create(CourseCalendar.time(on: day, minute: Double(selectedMinute))) }
                 Button("粘贴课程") { clipboard.paste(at: pasteTarget) }.disabled(!clipboard.canPaste)
+                if clipboard.isPreviewActive {
+                    Button("结束粘贴预览") { clipboard.endPastePreview() }
+                }
+                Button("撤销粘贴课程") { clipboard.undo() }.disabled(clipboard.undoTitle == nil)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(LedgerDate.day(day))，课程时间轴")

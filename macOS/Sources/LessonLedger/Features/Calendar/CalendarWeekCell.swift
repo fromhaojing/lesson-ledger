@@ -31,6 +31,7 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
     private var popover: NSPopover?
     private var tracking: NSTrackingArea?
     private let clipboardOwner = UUID()
+    private var previewObserver: NSObjectProtocol?
     private let calendar = Calendar.current
     override var isFlipped: Bool { true }
 
@@ -40,7 +41,11 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
         layerContentsRedrawPolicy = .onSetNeedsDisplay
         registerForDraggedTypes([.string])
         setAccessibilityElement(false)
+        previewObserver = NotificationCenter.default.addObserver(forName: CalendarClipboard.didChangePreview, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.needsDisplay = true }
+        }
     }
+    deinit { if let previewObserver { NotificationCenter.default.removeObserver(previewObserver) } }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func configure(_ row: CalendarMonthRow) {
@@ -80,7 +85,9 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
             if day.info.isWeekend { NSColor.labelColor.withAlphaComponent(0.025).setFill(); day.rect.fill() }
             if day.info.month != content.month { NSColor.labelColor.withAlphaComponent(0.02).setFill(); day.rect.fill() }
             if day.info.date == identity?.selection { accent.withAlphaComponent(0.045).setFill(); day.rect.fill() }
-            if let dropDay, days[dropDay].info.date == day.info.date {
+            let pasteDay = CalendarClipboard.shared.preview?.target.date
+            if dropDay.map({ days[$0].info.date == day.info.date }) == true
+                || pasteDay.map({ calendar.isDate($0, inSameDayAs: day.info.date) }) == true {
                 accent.withAlphaComponent(0.15).setFill(); day.rect.fill()
                 accent.setStroke(); let border = NSBezierPath(rect: day.rect.insetBy(dx: 1, dy: 1)); border.lineWidth = 2; border.stroke()
             }
@@ -198,6 +205,9 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
             menu.addItem(CalendarClipboard.shared.pasteMenuItem(at: .day(date)))
             if !days[day].lessons.isEmpty { add("查看当天全部课程") { [weak self] in self?.activate(.more(day)) } }
         }
+        if let item = CalendarClipboard.shared.endPastePreviewMenuItem() { menu.addItem(item) }
+        menu.addItem(.separator())
+        menu.addItem(CalendarClipboard.shared.undoMenuItem())
         return menu
     }
 
@@ -267,6 +277,7 @@ final class CalendarWeekCell: NSTableCellView, NSDraggingSource {
         }
         if toolTip != text { toolTip = text }
     }
+    override func mouseEntered(with event: NSEvent) { mouseMoved(with: event) }
     override func mouseExited(with event: NSEvent) {
         toolTip = nil
         CalendarClipboard.shared.leave(owner: clipboardOwner)

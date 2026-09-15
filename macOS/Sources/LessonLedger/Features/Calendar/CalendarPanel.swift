@@ -12,7 +12,9 @@ struct CalendarPanel: View {
     var create: (Date) -> Void
     var createTimed: (Date) -> Void
     var moveToTime: (String, Date) -> Bool
-    var pasteCourse: (CalendarCopiedCourse, CalendarPasteTarget) -> Bool
+    var pasteCourse: (CalendarCopiedCourse, CalendarPasteTarget, String) -> Bool
+    var canUndoPaste: Bool
+    var undoPaste: () -> Bool
     var edit: (Lesson) -> Void
     var confirm: (Lesson) -> Void
     var cancel: (Lesson) -> Void
@@ -25,6 +27,7 @@ struct CalendarPanel: View {
     @State private var today = Calendar.current.startOfDay(for: Date())
     @State private var mountedModes: Set<CalendarDisplayMode> = []
     @State private var calendarRevision = 0
+    @ObservedObject private var clipboard = CalendarClipboard.shared
     private var calendar: Calendar { .current }
 
     var body: some View {
@@ -51,8 +54,33 @@ struct CalendarPanel: View {
             footer
         }
         .background(Color(nsColor: .controlBackgroundColor))
+        .overlay(alignment: .top) {
+            if let feedback = clipboard.feedback {
+                Label {
+                    Text(feedback).foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+                    .font(.callout).lineLimit(1)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(Color(nsColor: .controlBackgroundColor),
+                                in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+                    }
+                    .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
+                    .padding(.top, 12).allowsHitTesting(false)
+                    .accessibilityLabel(feedback)
+            }
+        }
         .background(CalendarClipboardHost().frame(width: 0, height: 0))
-        .onAppear { CalendarClipboard.shared.activate(fallback: .day(date), paste: pasteCourse) }
+        .onAppear {
+            clipboard.activate(fallback: .day(date), paste: pasteCourse,
+                               undoTitle: canUndoPaste ? "粘贴课程" : nil, undo: undoPaste)
+        }
+        .onChange(of: canUndoPaste) { _, canUndo in clipboard.updateUndoTitle(canUndo ? "粘贴课程" : nil) }
         .onDisappear { CalendarClipboard.shared.deactivate() }
         .onChange(of: lessons) { _, next in
             indexRequestID = UUID()
@@ -389,7 +417,7 @@ struct CalendarModeSwitcher: View {
                 Button { selection = mode } label: {
                     Text(mode.rawValue)
                         .font(.system(size: 13, weight: selection == mode ? .semibold : .regular))
-                        .foregroundStyle(selection == mode ? Color.white : Color.black)
+                        .foregroundStyle(selection == mode ? Color.white : Color.primary)
                         .frame(width: 46, height: 28)
                         .background {
                             if selection == mode { Capsule().fill(theme.primary) }
@@ -403,8 +431,8 @@ struct CalendarModeSwitcher: View {
             }
         }
         .padding(4)
-        .background(Color.white, in: Capsule())
-        .overlay { Capsule().strokeBorder(Color.black.opacity(0.06), lineWidth: 0.5) }
+        .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
+        .overlay { Capsule().strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5) }
         .fixedSize()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("日历视图")
@@ -735,6 +763,10 @@ struct CalendarLessonItem: View {
             Button("查看课程") { showDetails = true }
             Button("复制课程") { clipboard.copy(lesson) }
             Button("粘贴课程") { clipboard.paste(at: pasteTarget) }.disabled(!clipboard.canPaste)
+            if clipboard.isPreviewActive {
+                Button("结束粘贴预览") { clipboard.endPastePreview() }
+            }
+            Button("撤销粘贴课程") { clipboard.undo() }.disabled(clipboard.undoTitle == nil)
             if lesson.status.isOpen {
                 Button("编辑课程…") { edit(lesson) }
                 Button("确认金额…") { confirm(lesson) }

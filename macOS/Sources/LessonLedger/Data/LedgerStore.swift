@@ -12,9 +12,17 @@ import UniformTypeIdentifiers
     @Published var isProcessingFile = false
     @Published var notificationStatus = "尚未检查"
     @Published var requestedLessonID: String?
+    @Published private(set) var canUndoPaste = false
+    private var pasteHistory = CoursePasteHistory()
     private(set) var database: Database?
     private var loadedRevision: Database.Revision?
     private var notificationTask: Task<Void, Never>?
+    @Published var cloudReminderStatus = "尚未检查"
+    @Published var cloudReminderCount = 0
+    @Published var cloudReminderSyncing = false
+    var cloudSyncTask: Task<Void, Never>?
+    var cloudSyncRequested = false
+    var cloudDataLoaded: Bool { loadedRevision != nil }
     let isPreview: Bool
 
     init() {
@@ -53,20 +61,29 @@ import UniformTypeIdentifiers
         // cannot be accidentally marked as already loaded.
         loadedRevision = revision
         if lessons != updatedLessons { lessons = updatedLessons }
+        pasteHistory.reconcile(existingIDs: Set(updatedLessons.map(\.id)))
+        canUndoPaste = pasteHistory.canUndo
         if settings != updatedSettings { settings = updatedSettings }
         let count = pending.count
         let badge = count == 0 ? nil : String(count)
         if NSApp.dockTile.badgeLabel != badge { NSApp.dockTile.badgeLabel = badge }
     }
     @discardableResult func perform(_ action: () throws -> Void) -> Bool {
-        do { try action(); try reload(); scheduleNotifications(); return true }
+        do { try action(); try reload(); scheduleNotifications(); requestCloudReminderSync(); return true }
         catch { self.error = error.localizedDescription; return false }
     }
     func save(_ draft: LessonDraft, editingID: String?) -> Bool {
         perform { try requireDatabase().save(draft.validated(), editingID: editingID) }
     }
-    func pasteCourse(_ course: CalendarCopiedCourse, at target: CalendarPasteTarget) -> Bool {
-        perform { try requireDatabase().save(course.makeLesson(at: target)) }
+    func pasteCourse(_ course: CalendarCopiedCourse, at target: CalendarPasteTarget, id: String = UUID().uuidString) -> Bool {
+        guard perform({ try requireDatabase().save(course.makeLesson(at: target, id: id)) }) else { return false }
+        pasteHistory.record(id)
+        canUndoPaste = true
+        return true
+    }
+    func undoPaste() -> Bool {
+        guard pasteHistory.canUndo else { return false }
+        return perform { try pasteHistory.undo(in: requireDatabase()) }
     }
     @discardableResult func reschedule(_ id: String, to date: Date, keepingTime: Bool = true) -> Bool {
         perform {

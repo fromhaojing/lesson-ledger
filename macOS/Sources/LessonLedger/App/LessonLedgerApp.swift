@@ -11,7 +11,7 @@ import UserNotifications
                 .toolbarBackground(.hidden, for: .windowToolbar)
                 .tint(store.accent).accentColor(store.accent).preferredColorScheme(store.scheme)
                 .environment(\.locale, Locale(identifier: "zh_CN"))
-                .onAppear { delegate.store = store; store.scheduleNotifications() }
+                .onAppear { delegate.store = store; store.scheduleNotifications(); store.requestCloudReminderSync() }
         }
         .defaultSize(width: 1240, height: 800)
         .commands {
@@ -26,7 +26,7 @@ import UserNotifications
                 Button("备份数据库…") { store.backup() }
             }
             CommandGroup(replacing: .help) {
-                Button("关于钱来") { NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "钱来", .applicationVersion: "2.0.0", .credits: NSAttributedString(string: "macOS 原生课程账本\n课程、学生与金额数据仅保存在本机。")]) }
+                Button("关于钱来") { NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "钱来", .applicationVersion: "2.0.0", .credits: NSAttributedString(string: "macOS 原生课程账本\n课程账本，支持可选的云端课程结束提醒。")]) }
             }
         }
         Settings {
@@ -47,8 +47,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
         NSApp.activate(ignoringOtherApps: true)
     }
+    func applicationDidBecomeActive(_ notification: Notification) {
+        Task { @MainActor in store?.requestCloudReminderSync() }
+    }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        Task { @MainActor in store?.requestCloudReminderSync() }
         if !flag { sender.windows.first(where: { $0.identifier?.rawValue == "main" })?.makeKeyAndOrderFront(nil) }
         return true
     }

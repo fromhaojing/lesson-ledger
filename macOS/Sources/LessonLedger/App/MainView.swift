@@ -89,8 +89,10 @@ struct MainView: View {
             .navigationSplitViewColumnWidth(min: 175, ideal: 200, max: 240)
             .safeAreaInset(edge: .bottom) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Label(store.isPreview ? "演示模式" : "数据保存在此 Mac", systemImage: store.isPreview ? "eye" : "internaldrive")
-                        .font(.caption).foregroundStyle(.secondary)
+                    if store.isPreview {
+                        Label("演示模式", systemImage: "eye")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                     SettingsLink { Label("设置", systemImage: "gearshape") }.buttonStyle(.plain)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(20)
             }
@@ -106,7 +108,8 @@ struct MainView: View {
                             create: { editor = EditorRequest(date: $0) },
                             createTimed: { editor = EditorRequest(date: $0, startAtSelectedTime: true) },
                             moveToTime: { store.reschedule($0, to: $1, keepingTime: false) },
-                            pasteCourse: { store.pasteCourse($0, at: $1) },
+                            pasteCourse: { store.pasteCourse($0, at: $1, id: $2) },
+                            canUndoPaste: store.canUndoPaste, undoPaste: { store.undoPaste() },
                             edit: { editor = EditorRequest(lesson: $0, date: $0.start) },
                             confirm: { confirmation = $0 }, cancel: { cancelTarget = $0 }, remove: { deleteTarget = $0 }
                         )
