@@ -1,5 +1,6 @@
 #!/bin/bash
 # Usage: scripts/build-app.sh [debug|release]
+# Release builds also create a drag-to-install DMG in build/releases/v<version>/.
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -7,6 +8,7 @@ CONFIGURATION="${1:-${CONFIGURATION:-release}}"
 if [ "$CONFIGURATION" = "--help" ] || [ "$CONFIGURATION" = "-h" ]; then
     echo "Usage: $0 [debug|release]"
     echo 'Environment: ARCHES="arm64 x86_64", MARKETING_VERSION=2.0.0, BUILD_NUMBER=1'
+    echo 'Output: build/钱来.app; release also creates build/releases/v<version>/QianLai-<version>-macOS-<arch>.dmg'
     exit 0
 fi
 if [ "$#" -gt 1 ] || { [ "$CONFIGURATION" != "debug" ] && [ "$CONFIGURATION" != "release" ]; }; then
@@ -51,3 +53,26 @@ for arch in ${ARCHES:-}; do
     lipo "$APP_PATH/Contents/MacOS/LessonLedger" -verify_arch "$arch"
 done
 echo "Built $APP_PATH ($CONFIGURATION, $MARKETING_VERSION, build $BUILD_NUMBER)"
+
+if [ "$CONFIGURATION" = "release" ]; then
+    # Name the package from the built binary, including the default host architecture.
+    BINARY_ARCHES="$(lipo -archs "$APP_PATH/Contents/MacOS/LessonLedger")"
+    case "$BINARY_ARCHES" in
+        "arm64 x86_64"|"x86_64 arm64") DMG_ARCH="universal" ;;
+        arm64|x86_64) DMG_ARCH="$BINARY_ARCHES" ;;
+        *) echo "ERROR: unsupported binary architectures: $BINARY_ARCHES" >&2; exit 1 ;;
+    esac
+    RELEASE_DIR="$PROJECT_DIR/build/releases/v$MARKETING_VERSION"
+    DMG_NAME="QianLai-$MARKETING_VERSION-macOS-$DMG_ARCH.dmg"
+    DMG_WORK_DIR="$(mktemp -d "$PROJECT_DIR/.build/dmg.XXXXXX")"
+    trap 'rm -rf "$DMG_WORK_DIR"' EXIT
+    mkdir -p "$DMG_WORK_DIR/contents" "$RELEASE_DIR"
+    ditto "$APP_PATH" "$DMG_WORK_DIR/contents/钱来.app"
+    ln -s /Applications "$DMG_WORK_DIR/contents/Applications"
+    hdiutil create -volname "钱来" -srcfolder "$DMG_WORK_DIR/contents" \
+        -fs HFS+ -format UDZO "$DMG_WORK_DIR/$DMG_NAME"
+    hdiutil verify "$DMG_WORK_DIR/$DMG_NAME"
+    # Replace an earlier package only after the new image has passed verification.
+    mv -f "$DMG_WORK_DIR/$DMG_NAME" "$RELEASE_DIR/$DMG_NAME"
+    echo "Packaged $RELEASE_DIR/$DMG_NAME"
+fi

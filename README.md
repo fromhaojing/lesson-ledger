@@ -10,7 +10,7 @@
 # 退出旧进程、编译 release 版并重新打开应用
 ./macOS/scripts/compile_and_run.sh
 
-# 只生成 release 应用
+# 生成 release 应用和 DMG 安装包
 ./macOS/scripts/build-app.sh release
 
 # 编译并运行 release 版
@@ -23,7 +23,9 @@
 ./macOS/scripts/test.sh
 ```
 
-生成的应用位于 `macOS/build/钱来.app`，可以直接打开或拖入「应用程序」。构建默认使用 `release` 和当前 Mac 的 CPU 架构，并执行本机临时签名及签名校验；对外分发需另行使用 Developer ID 签名和公证。
+生成的应用位于 `macOS/build/钱来.app`。`release` 构建还会自动生成 `macOS/build/releases/v<版本>/QianLai-<版本>-macOS-<架构>.dmg`，架构为 `arm64`、`x86_64` 或 `universal`。打开 DMG 后，将「钱来」拖到旁边的「Applications（应用程序）」即可安装；`debug` 只生成 `.app`。
+
+DMG 使用压缩只读格式，生成后自动校验；同版本、同架构再次构建时，校验成功后替换原安装包。构建默认使用 `release` 和当前 Mac 的 CPU 架构，并执行本机临时签名及签名校验；对外分发需另行使用 Developer ID 签名和公证。
 
 `build-app.sh` 支持 `MARKETING_VERSION`（默认取 `Info.plist`）、`BUILD_NUMBER`（默认取 Git 提交数量）和 `ARCHES` 环境变量。版本覆盖只写入生成的应用，不修改源 `Info.plist`。例如构建 Apple Silicon / Intel 通用版本：
 
@@ -31,7 +33,9 @@
 ARCHES="arm64 x86_64" MARKETING_VERSION=2.0.0 BUILD_NUMBER=10 ./macOS/scripts/build-app.sh release
 ```
 
-`run.sh` 保留为 `compile_and_run.sh` 的兼容入口；两者均支持 `[debug|release] [--preview]`，默认 `release`；需要断点调试时显式传入 `debug`。一键运行会先退出正在运行的钱来，若无法退出则报错停止。版本说明维护在仓库根目录的 `CHANGELOG.md` 中。
+上述通用版本命令会生成 `macOS/build/releases/v2.0.0/QianLai-2.0.0-macOS-universal.dmg`。
+
+`run.sh` 保留为 `compile_and_run.sh` 的兼容入口；两者均支持 `[debug|release] [--preview]`，默认 `release`；需要断点调试时显式传入 `debug`。一键运行会先退出正在运行的钱来，若无法退出则报错停止；使用 `release` 时也会生成 DMG。版本说明维护在仓库根目录的 `CHANGELOG.md` 中。
 
 在 Xcode 中打开 `macOS/Package.swift` 可以编辑、编译和运行测试。体验完整菜单、图标与系统通知请使用脚本生成的 `.app`。
 
@@ -42,6 +46,16 @@ ARCHES="arm64 x86_64" MARKETING_VERSION=2.0.0 BUILD_NUMBER=10 ./macOS/scripts/bu
 ```
 
 演示模式使用独立临时数据库，不读取正式课程，也不安排系统通知。
+
+## GitHub Release 自动打包
+
+`.github/workflows/release.yml` 在 GitHub 的 macOS 运行器上执行测试、构建 Apple Silicon / Intel 通用 DMG、挂载校验应用和资源，并将 `.dmg` 与同名 `.dmg.sha256` 上传到对应 GitHub Release。
+
+- 新版本：更新 `Info.plist` 和 `CHANGELOG.md`，提交后推送匹配的 `v<版本>` 标签，自动构建并发布。
+- 为已有版本补充或重建安装包：将打包改动推送到 `codex/release-*` 分支。版本读取 `Info.plist`，对应标签必须已存在；流程会核对应用源代码与标签一致，允许更新打包脚本和说明。
+- 流程支持 `workflow_dispatch`，可用 `gh workflow run release.yml --repo fromhaojing/lesson-ledger --ref codex/macos -f tag=v2.0.0` 重建指定版本。工作流首次运行后可通过 CLI 调用；网页手动运行按钮要求默认分支中也有此工作流。
+
+已有 Release 会补充或替换同名 DMG 与校验文件，保留其他附件和发布说明。构建沿用本机临时签名。
 
 ## 功能
 
