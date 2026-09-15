@@ -1,0 +1,115 @@
+name: Release macOS DMG
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - 'codex/release-*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag (defaults to the version in Info.plist)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: macos-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Test, build and publish universal DMG
+    runs-on: macos-26
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out release sources
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate release version and source
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' macOS/Info.plist)"
+          RELEASE_TAG="${REQUESTED_TAG:-v$VERSION}"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            RELEASE_TAG="$GITHUB_REF_NAME"
+          fi
+          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$RELEASE_TAG" != "v$VERSION" ]; then
+            echo 'ERROR: release tag must match the version in macOS/Info.plist.' >&2
+            exit 1
+          fi
+          git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}"
+          # An existing release may receive new packaging, but not different app sources.
+          git diff --exit-code "$RELEASE_TAG" HEAD -- \
+            macOS/Sources macOS/Package.swift macOS/Info.plist macOS/AppIcon.png
+          {
+            echo "RELEASE_TAG=$RELEASE_TAG"
+            echo "MARKETING_VERSION=$VERSION"
+            echo "BUILD_NUMBER=$(git rev-list --count "$RELEASE_TAG")"
+            echo "DMG_PATH=macOS/build/releases/$RELEASE_TAG/QianLai-$VERSION-macOS-universal.dmg"
+          } >> "$GITHUB_ENV"
+
+      - name: Run tests
+        run: ./macOS/scripts/test.sh
+
+      - name: Build universal app and DMG
+        env:
+          ARCHES: arm64 x86_64
+        run: ./macOS/scripts/build-app.sh release
+
+      - name: Verify packaged app
+        run: |
+          set -euo pipefail
+          MOUNT_DIR="$(mktemp -d "$RUNNER_TEMP/qianlai-dmg.XXXXXX")"
+          trap 'hdiutil detach "$MOUNT_DIR" >/dev/null 2>&1 || true; rmdir "$MOUNT_DIR" 2>/dev/null || true' EXIT
+          hdiutil attach "$DMG_PATH" -readonly -noautoopen -mountpoint "$MOUNT_DIR"
+          test "$(readlink "$MOUNT_DIR/Applications")" = /Applications
+          APP_PATH="$MOUNT_DIR/钱来.app"
+          codesign --verify --deep --strict "$APP_PATH"
+          lipo "$APP_PATH/Contents/MacOS/LessonLedger" -verify_arch arm64 x86_64
+          diff -qr macOS/build/钱来.app "$APP_PATH"
+          hdiutil detach "$MOUNT_DIR"
+          rmdir "$MOUNT_DIR"
+          trap - EXIT
+          cd "$(dirname "$DMG_PATH")"
+          shasum -a 256 "$(basename "$DMG_PATH")" > "$(basename "$DMG_PATH").sha256"
+          shasum -a 256 -c "$(basename "$DMG_PATH").sha256"
+
+      - name: Publish DMG to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            NOTES_PATH="$RUNNER_TEMP/release-notes.md"
+            ./macOS/scripts/release-notes.sh "$MARKETING_VERSION" > "$NOTES_PATH"
+            cat >> "$NOTES_PATH" <<EOF
+
+          ### 下载与安装
+
+          - 下载 QianLai-$MARKETING_VERSION-macOS-universal.dmg，将「钱来」拖入「Applications（应用程序）」。
+          - 支持 Apple Silicon 和 Intel Mac，要求 macOS 14 或更新版本。
+          - 使用本机临时签名，尚未进行 Developer ID 签名和 Apple 公证。
+          - 安装包通过测试、DMG 完整性检查、双架构及应用签名校验；SHA-256 校验值见同名 .dmg.sha256 文件。
+          EOF
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "钱来 $RELEASE_TAG" --notes-file "$NOTES_PATH"
+          fi
+          gh release upload "$RELEASE_TAG" "$DMG_PATH" "$DMG_PATH.sha256" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+          {
+            echo "### 钱来 $RELEASE_TAG"
+            echo "- Universal DMG: $(basename "$DMG_PATH")"
+            echo "- Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$RELEASE_TAG"
+            echo "- Workflow commit: $GITHUB_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
